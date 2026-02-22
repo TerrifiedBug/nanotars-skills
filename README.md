@@ -15,66 +15,83 @@ Or browse all skills: run `/plugin` and go to the **Discover** tab.
 
 ### Messaging Channels
 
-| Plugin | Description | Install |
-|--------|-------------|---------|
-| nanoclaw-discord | Add Discord as a channel. Runs alongside WhatsApp or other channels. | `/plugin install nanoclaw-discord@nanoclaw-skills` |
-| nanoclaw-slack | Add Slack as a messaging channel. Uses Socket Mode (no public URL needed). Trigg | `/plugin install nanoclaw-slack@nanoclaw-skills` |
-| nanoclaw-telegram | Add Telegram as a channel. Can replace WhatsApp entirely or run alongside it. Al | `/plugin install nanoclaw-telegram@nanoclaw-skills` |
-| nanoclaw-whatsapp | Add WhatsApp as a channel. Install the WhatsApp channel plugin and authenticate. | `/plugin install nanoclaw-whatsapp@nanoclaw-skills` |
+| Plugin | Description |
+|--------|-------------|
+| `nanoclaw-discord` | Discord bot channel plugin |
+| `nanoclaw-slack` | Slack channel via Socket Mode (no public URL needed) |
+| `nanoclaw-telegram` | Telegram bot channel plugin |
+| `nanoclaw-whatsapp` | WhatsApp channel via Baileys with QR auth |
 
 ### Productivity
 
-| Plugin | Description | Install |
-|--------|-------------|---------|
-| nanoclaw-calendar | Add calendar access to NanoClaw. Supports Google Calendar (gog CLI with OAuth) a | `/plugin install nanoclaw-calendar@nanoclaw-skills` |
-| nanoclaw-dashboard | Add admin dashboard with system monitoring and task management. Triggers on "add | `/plugin install nanoclaw-dashboard@nanoclaw-skills` |
-| nanoclaw-gmail | Add Gmail access to NanoClaw via gog CLI (Google Workspace CLI). Agents can sear | `/plugin install nanoclaw-gmail@nanoclaw-skills` |
-| nanoclaw-imap-read | Add read-only IMAP email access to NanoClaw agent containers. Supports multiple  | `/plugin install nanoclaw-imap-read@nanoclaw-skills` |
-| nanoclaw-notion | Add Notion API access to NanoClaw. Enables agents to read and update Notion page | `/plugin install nanoclaw-notion@nanoclaw-skills` |
+| Plugin | Description |
+|--------|-------------|
+| `nanoclaw-calendar` | Google Calendar + CalDAV access via gog CLI and TypeScript CalDAV client |
+| `nanoclaw-dashboard` | Admin web UI with system health, task management, message viewer, and logs |
+| `nanoclaw-gmail` | Gmail search, read, and send via gog CLI (Google Workspace) |
+| `nanoclaw-imap-read` | Read-only IMAP email access supporting multiple providers |
+| `nanoclaw-notion` | Notion API for reading and updating pages, databases, and projects |
 
 ### Search & Research
 
-| Plugin | Description | Install |
-|--------|-------------|---------|
-| nanoclaw-brave-search | Add Brave Search API access to NanoClaw agent containers. Enables web search for | `/plugin install nanoclaw-brave-search@nanoclaw-skills` |
-| nanoclaw-parallel | Add Parallel AI web research to NanoClaw via MCP Servers. Enables quick web sear | `/plugin install nanoclaw-parallel@nanoclaw-skills` |
+| Plugin | Description |
+|--------|-------------|
+| `nanoclaw-brave-search` | Web search via Brave Search API for research and current events |
+| `nanoclaw-parallel` | Parallel AI web research via MCP Servers for quick multi-source lookups |
 
 ### Media
 
-| Plugin | Description | Install |
-|--------|-------------|---------|
-| nanoclaw-giphy | Add GIF search and sending to NanoClaw agents via Giphy API. Enables humorous GI | `/plugin install nanoclaw-giphy@nanoclaw-skills` |
-| nanoclaw-transcription | Add voice message transcription to NanoClaw using OpenAI's Whisper API. Automati | `/plugin install nanoclaw-transcription@nanoclaw-skills` |
+| Plugin | Description |
+|--------|-------------|
+| `nanoclaw-giphy` | GIF search and sending via Giphy API |
+| `nanoclaw-transcription` | Voice message transcription via OpenAI Whisper API |
 
 ### Monitoring & Automation
 
-| Plugin | Description | Install |
-|--------|-------------|---------|
-| nanoclaw-changedetection | Add changedetection.io integration to NanoClaw. Enables agents to create and man | `/plugin install nanoclaw-changedetection@nanoclaw-skills` |
-| nanoclaw-cs2-esports | Add CS2 esports match tracking to NanoClaw. Shows upcoming Counter-Strike 2 matc | `/plugin install nanoclaw-cs2-esports@nanoclaw-skills` |
-| nanoclaw-freshrss | Add FreshRSS feed reader integration to NanoClaw. Connects agents to a self-host | `/plugin install nanoclaw-freshrss@nanoclaw-skills` |
-| nanoclaw-github | Add GitHub API access to NanoClaw. Enables agents to monitor repos, check PRs, i | `/plugin install nanoclaw-github@nanoclaw-skills` |
-| nanoclaw-n8n | Add n8n workflow automation integration to NanoClaw. Enables agents to create mo | `/plugin install nanoclaw-n8n@nanoclaw-skills` |
-| nanoclaw-stocks | Add stock price and financial data lookups via Yahoo Finance. Triggers on stock  | `/plugin install nanoclaw-stocks@nanoclaw-skills` |
-| nanoclaw-webhook | Add a webhook HTTP endpoint so external services (Home Assistant, uptime monitor | `/plugin install nanoclaw-webhook@nanoclaw-skills` |
+| Plugin | Description |
+|--------|-------------|
+| `nanoclaw-changedetection` | Website change monitoring via changedetection.io |
+| `nanoclaw-cs2-esports` | CS2 esports match tracking from Liquipedia |
+| `nanoclaw-freshrss` | Self-hosted RSS feed reader via FreshRSS API |
+| `nanoclaw-github` | GitHub API access for PRs, issues, commits, and repo monitoring |
+| `nanoclaw-n8n` | n8n workflow automation — create, monitor, and trigger workflows |
+| `nanoclaw-stocks` | Stock prices and financial data via Yahoo Finance |
+| `nanoclaw-webhook` | HTTP webhook endpoint for push events from external services |
 
 ### Smart Home
 
-| Plugin | Description | Install |
-|--------|-------------|---------|
-| nanoclaw-homeassistant | Add Home Assistant integration to NanoClaw via official MCP Server. Enables agen | `/plugin install nanoclaw-homeassistant@nanoclaw-skills` |
+| Plugin | Description |
+|--------|-------------|
+| `nanoclaw-homeassistant` | Home Assistant control via official MCP Server |
 
 ### Utilities
 
-| Plugin | Description | Install |
-|--------|-------------|---------|
-| nanoclaw-claude-mem | Add persistent memory (claude-mem) to NanoClaw agent containers. Creates systemd | `/plugin install nanoclaw-claude-mem@nanoclaw-skills` |
-| nanoclaw-commute | Add travel time and commute lookup to NanoClaw agents using Waze live traffic da | `/plugin install nanoclaw-commute@nanoclaw-skills` |
-| nanoclaw-norish | Add Norish recipe import to NanoClaw agents. Send recipe URLs to your Norish ins | `/plugin install nanoclaw-norish@nanoclaw-skills` |
-| nanoclaw-telegram-swarm | Add Agent Swarm (Teams) support to Telegram. Each subagent gets its own bot iden | `/plugin install nanoclaw-telegram-swarm@nanoclaw-skills` |
-| nanoclaw-trains | Add UK train departure/arrival information to NanoClaw via National Rail Darwin  | `/plugin install nanoclaw-trains@nanoclaw-skills` |
-| nanoclaw-weather | Add weather lookup capability to NanoClaw agents. Uses free wttr.in and Open-Met | `/plugin install nanoclaw-weather@nanoclaw-skills` |
+| Plugin | Description |
+|--------|-------------|
+| `nanoclaw-claude-mem` | Persistent cross-session memory via claude-mem vector database |
+| `nanoclaw-commute` | Travel times and commute lookup using Waze live traffic data |
+| `nanoclaw-norish` | Recipe import by URL to Norish instance |
+| `nanoclaw-telegram-swarm` | Agent Teams for Telegram — each subagent gets its own bot identity |
+| `nanoclaw-trains` | UK National Rail departures and arrivals via Darwin API |
+| `nanoclaw-weather` | Weather forecasts via free wttr.in and Open-Meteo APIs (no key needed) |
+
+## Installing a Skill
+
+```bash
+# 1. Add this marketplace (one-time)
+/plugin marketplace add TerrifiedBug/nanoclaw-skills
+
+# 2. Install a skill
+/plugin install nanoclaw-weather@nanoclaw-skills
+
+# 3. Run the installation skill
+/add-skill-weather
+```
+
+Each skill creates a plugin in your `plugins/` directory with a `plugin.json` manifest, container skills, and any required configuration.
 
 ## Contributing
 
 Create a skill with `/create-skill-plugin` in your NanoClaw repo, test it locally, then publish with `/nanoclaw-publish-skill`.
+
+See [CONTRIBUTING.md](https://github.com/TerrifiedBug/nanoclaw/blob/main/CONTRIBUTING.md) for details.
