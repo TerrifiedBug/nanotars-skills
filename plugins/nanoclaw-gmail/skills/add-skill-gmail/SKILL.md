@@ -127,7 +127,7 @@ cp -r ~/.config/gogcli/* data/gogcli/
 chown -R 1000:1000 data/gogcli
 ```
 
-## Step 5: Group Scoping
+## Step 5: Plugin Configuration
 
 Ask the user which groups should have access to Gmail:
 
@@ -143,6 +143,8 @@ If the user wants to restrict access, update `plugins/gmail/plugin.json` after c
 If all groups (or the user doesn't care), leave as `"groups": ["*"]`.
 
 Restricting access means only those groups' agents will have Gmail tools. Other groups won't see the email commands or credentials.
+
+Also ask about channel types. If the user wants this plugin available on all channel types (WhatsApp, Discord, etc.), leave `"channels": ["*"]`. To restrict, set `"channels"` to specific types (e.g., `["whatsapp"]`). Most users will want the default.
 
 ## Step 6: Install Plugin
 

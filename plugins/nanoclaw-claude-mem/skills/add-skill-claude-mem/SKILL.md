@@ -144,7 +144,13 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
     cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/claude-mem/
     ```
 
-11. Rebuild and restart:
+11. **Plugin Configuration:** By default this plugin is available to all groups and channel types. To restrict access, edit `plugins/claude-mem/plugin.json` and set:
+    - `"groups"` to specific group folder names (e.g., `["main"]`) instead of `["*"]`
+    - `"channels"` to specific channel types (e.g., `["whatsapp"]`) instead of `["*"]`
+
+    Ask the user if they want to restrict access. Most users will keep the defaults.
+
+12. Rebuild and restart:
     ```bash
     npm run build
     systemctl restart nanoclaw

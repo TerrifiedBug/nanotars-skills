@@ -109,7 +109,7 @@ sed -i '/^CALDAV_ACCOUNTS=/d' .env
 echo 'CALDAV_ACCOUNTS=[{"name":"iCloud","serverUrl":"https://caldav.icloud.com","user":"user@icloud.com","pass":"xxxx-xxxx-xxxx-xxxx"}]' >> .env
 ```
 
-### Step 4: Group Scoping
+### Step 4: Plugin Configuration
 
 Ask the user which groups should have access to Calendar:
 
@@ -125,6 +125,8 @@ If the user wants to restrict access, update `plugins/calendar/plugin.json` afte
 If all groups (or the user doesn't care), leave as `"groups": ["*"]`.
 
 Restricting access means only those groups' agents will have calendar tools. Other groups won't see calendar commands or credentials.
+
+Also ask about channel types. If the user wants this plugin available on all channel types (WhatsApp, Discord, etc.), leave `"channels": ["*"]`. To restrict, set `"channels"` to specific types (e.g., `["whatsapp"]`). Most users will want the default.
 
 ### Step 5: Deploy Plugin
 

@@ -70,7 +70,17 @@ echo 'FRESHRSS_API_KEY=THE_API_KEY_HERE' >> .env
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/freshrss/
 ```
 
-## Step 5: Test the API Connection
+## Step 5: Plugin Configuration
+
+Ask the user which groups should have access to this plugin:
+- **All groups** (default) -- every group's agent can use this
+- **Specific groups only** -- e.g., only `main`
+
+If restricting, update `plugins/freshrss/plugin.json` to set `"groups"` to the list of group folder names.
+
+Also ask about channel types. Leave `"channels": ["*"]` for all, or set to specific types (e.g., `["whatsapp"]`).
+
+## Step 6: Test the API Connection
 
 ```bash
 source .env
@@ -96,7 +106,7 @@ If the test fails:
 - **Connection refused**: Check FreshRSS URL and that the instance is running
 - **404**: FreshRSS API may not be enabled -- check Settings > Authentication > Allow API access
 
-## Step 6: Build and Restart
+## Step 7: Build and Restart
 
 ```bash
 npm run build

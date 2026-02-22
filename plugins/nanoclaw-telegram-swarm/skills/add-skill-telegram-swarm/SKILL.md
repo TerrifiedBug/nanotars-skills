@@ -40,6 +40,14 @@ cp ${CLAUDE_PLUGIN_ROOT}/files/pool.js plugins/channels/telegram/pool.js
 
 If `plugins/channels/telegram/` does not exist, the user needs to run `/add-channel-telegram` first.
 
+## Step 0a: Plugin Configuration
+
+By default this plugin is available to all groups and channel types. To restrict access, edit the Telegram channel plugin's `plugin.json` and set:
+- `"groups"` to specific group folder names (e.g., `["main"]`) instead of `["*"]`
+- `"channels"` to specific channel types (e.g., `["telegram"]`) instead of `["*"]`
+
+Ask the user if they want to restrict access. Most users will keep the defaults.
+
 ## Step 1: Create Pool Bots
 
 Tell the user:

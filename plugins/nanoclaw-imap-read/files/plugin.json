@@ -1,7 +1,15 @@
 {
   "name": "imap-read",
   "description": "Read-only IMAP email access",
-  "containerEnvVars": ["IMAP_READ_ACCOUNTS"],
+  "containerEnvVars": [
+    "IMAP_READ_ACCOUNTS"
+  ],
   "hooks": [],
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "channels": [
+    "*"
+  ],
+  "groups": [
+    "*"
+  ]
 }

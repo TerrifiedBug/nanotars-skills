@@ -39,6 +39,16 @@ If `NEED_PLUGIN`: copy plugin files first:
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/webhook/
 ```
 
+### 1a. Plugin Configuration
+
+Ask the user which groups should have access to this plugin:
+- **All groups** (default) -- every group's agent can use this
+- **Specific groups only** -- e.g., only `main`
+
+If restricting, update `plugins/webhook/plugin.json` to set `"groups"` to the list of group folder names.
+
+Also ask about channel types. Leave `"channels": ["*"]` for all, or set to specific types (e.g., `["whatsapp"]`).
+
 ### 2. Show existing routes (if any)
 
 If `data/webhook-routes.json` exists, read and display current routes:

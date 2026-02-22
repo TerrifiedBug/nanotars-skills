@@ -91,7 +91,7 @@ sed -i '/^NANOCLAW_WEBHOOK_URL=/d' .env
 echo 'NANOCLAW_WEBHOOK_URL=THE_WEBHOOK_URL_HERE' >> .env
 ```
 
-## Step 5: Group Scoping
+## Step 5: Plugin Configuration
 
 Ask the user which groups should have access to n8n:
 
@@ -107,6 +107,8 @@ If the user wants to restrict access, update `plugins/n8n/plugin.json` after cop
 If all groups (or the user doesn't care), leave as `"groups": ["*"]`.
 
 Restricting access means only those groups' agents will have n8n workflow tools. Other groups won't see the n8n integration or credentials.
+
+Also ask about channel types. If the user wants this plugin available on all channel types (WhatsApp, Discord, etc.), leave `"channels": ["*"]`. To restrict, set `"channels"` to specific types (e.g., `["whatsapp"]`). Most users will want the default.
 
 ## Step 6: Install Plugin
 

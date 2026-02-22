@@ -1,8 +1,16 @@
 {
   "name": "slack",
   "description": "Slack channel via Bolt",
-  "hooks": ["onChannel"],
+  "hooks": [
+    "onChannel"
+  ],
   "channelPlugin": true,
   "dependencies": true,
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "channels": [
+    "*"
+  ],
+  "groups": [
+    "*"
+  ]
 }

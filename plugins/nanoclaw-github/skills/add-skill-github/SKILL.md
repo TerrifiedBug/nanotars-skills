@@ -36,7 +36,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
    ```bash
    echo 'GH_TOKEN=YOUR_TOKEN_HERE' >> .env
    ```
-3. **Group Scoping** -- Ask the user which groups should have access to GitHub:
+3. **Plugin Configuration** -- Ask the user which groups should have access to GitHub:
 
    - **All groups** (default) -- every group's agent can query repos, PRs, issues, and CI status
    - **Specific groups only** -- e.g., only `main`
@@ -50,6 +50,8 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
    If all groups (or the user doesn't care), leave as `"groups": ["*"]`.
 
    Restricting access means only those groups' agents will have GitHub tools. Other groups won't see the GitHub API or credentials.
+
+   Also ask about channel types. If the user wants this plugin available on all channel types (WhatsApp, Discord, etc.), leave `"channels": ["*"]`. To restrict, set `"channels"` to specific types (e.g., `["whatsapp"]`). Most users will want the default.
 
 4. Copy plugin files:
    ```bash

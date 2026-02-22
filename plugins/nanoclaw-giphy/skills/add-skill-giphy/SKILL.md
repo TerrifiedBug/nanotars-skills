@@ -29,16 +29,21 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
    ```bash
    cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/gif-search/
    ```
-2. Get a free API key:
+2. **Plugin Configuration:** By default this plugin is available to all groups and channel types. To restrict access, edit `plugins/gif-search/plugin.json` and set:
+   - `"groups"` to specific group folder names (e.g., `["main"]`) instead of `["*"]`
+   - `"channels"` to specific channel types (e.g., `["whatsapp"]`) instead of `["*"]`
+
+   Ask the user if they want to restrict access. Most users will keep the defaults.
+3. Get a free API key:
    - Go to https://developers.giphy.com/
    - Click "Create an App" and sign up / log in
    - Choose **API** (not SDK)
    - Copy your API key from the app dashboard
-3. Add to `.env`:
+4. Add to `.env`:
    ```bash
    echo 'GIPHY_API_KEY=YOUR_KEY_HERE' >> .env
    ```
-4. Rebuild and restart:
+5. Rebuild and restart:
    ```bash
    npm run build
    systemctl restart nanoclaw  # or launchctl on macOS

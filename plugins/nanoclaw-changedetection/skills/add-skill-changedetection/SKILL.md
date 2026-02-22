@@ -62,7 +62,17 @@ echo 'CHANGEDETECTION_API_KEY=THE_KEY_HERE' >> .env
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/changedetection/
 ```
 
-## Step 5: Test the Connection
+## Step 5: Plugin Configuration
+
+Ask the user which groups should have access to this plugin:
+- **All groups** (default) -- every group's agent can use this
+- **Specific groups only** -- e.g., only `main`
+
+If restricting, update `plugins/changedetection/plugin.json` to set `"groups"` to the list of group folder names.
+
+Also ask about channel types. Leave `"channels": ["*"]` for all, or set to specific types (e.g., `["whatsapp"]`).
+
+## Step 6: Test the Connection
 
 ```bash
 source .env
@@ -82,7 +92,7 @@ If the test fails:
 - **401/403**: API key is wrong -- regenerate in Settings > API
 - **Timeout**: Check network/firewall between NanoClaw and changedetection.io
 
-## Step 6: Test Webhook Connectivity
+## Step 7: Test Webhook Connectivity
 
 Verify changedetection.io can reach NanoClaw's webhook endpoint:
 
@@ -102,7 +112,7 @@ else:
 "
 ```
 
-## Step 7: Build and Restart
+## Step 8: Build and Restart
 
 ```bash
 npm run build

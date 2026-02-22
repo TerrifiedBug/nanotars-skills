@@ -3,5 +3,11 @@
   "description": "Stock price and financial data lookups via Yahoo Finance",
   "containerEnvVars": [],
   "hooks": [],
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "channels": [
+    "*"
+  ],
+  "groups": [
+    "*"
+  ]
 }

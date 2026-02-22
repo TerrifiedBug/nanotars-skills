@@ -107,7 +107,7 @@ echo "HA_URL=THE_URL_HERE" >> .env
 echo "HA_TOKEN=THE_TOKEN_HERE" >> .env
 ```
 
-## Step 6: Group Scoping
+## Step 6: Plugin Configuration
 
 Ask the user which groups should have access to Home Assistant:
 
@@ -123,6 +123,8 @@ If the user wants to restrict access, update `plugins/homeassistant/plugin.json`
 If all groups (or the user doesn't care), leave as `"groups": ["*"]`.
 
 Restricting access means only those groups' agents will have smart home controls. Other groups won't see the Home Assistant tools or credentials.
+
+Also ask about channel types. If the user wants this plugin available on all channel types (WhatsApp, Discord, etc.), leave `"channels": ["*"]`. To restrict, set `"channels"` to specific types (e.g., `["whatsapp"]`). Most users will want the default.
 
 ## Step 7: Install Plugin
 

@@ -1,9 +1,21 @@
 {
   "name": "claude-mem",
   "description": "Persistent cross-session memory",
-  "containerEnvVars": ["CLAUDE_MEM_URL"],
-  "publicEnvVars": ["CLAUDE_MEM_URL"],
-  "containerHooks": ["hooks/post-tool-use.js"],
+  "containerEnvVars": [
+    "CLAUDE_MEM_URL"
+  ],
+  "publicEnvVars": [
+    "CLAUDE_MEM_URL"
+  ],
+  "containerHooks": [
+    "hooks/post-tool-use.js"
+  ],
   "hooks": [],
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "channels": [
+    "*"
+  ],
+  "groups": [
+    "*"
+  ]
 }

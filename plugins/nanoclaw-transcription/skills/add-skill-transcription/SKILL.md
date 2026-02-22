@@ -64,7 +64,15 @@ cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/transcription/
 
 The plugin loader handles `npm install` automatically on next startup (`dependencies: true` in manifest).
 
-## Step 5: Build and Restart
+## Step 5: Plugin Configuration
+
+By default this plugin is available to all groups and channel types. To restrict access, edit `plugins/transcription/plugin.json` and set:
+- `"groups"` to specific group folder names (e.g., `["main"]`) instead of `["*"]`
+- `"channels"` to specific channel types (e.g., `["whatsapp"]`) instead of `["*"]`
+
+Ask the user if they want to restrict access. Most users will keep the defaults.
+
+## Step 6: Build and Restart
 
 ```bash
 npm run build

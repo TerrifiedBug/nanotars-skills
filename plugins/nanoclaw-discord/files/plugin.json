@@ -1,9 +1,19 @@
 {
   "name": "discord",
   "description": "Discord channel via discord.js",
-  "hooks": ["onChannel"],
+  "hooks": [
+    "onChannel"
+  ],
   "channelPlugin": true,
-  "containerEnvVars": ["DISCORD_BOT_TOKEN"],
+  "containerEnvVars": [
+    "DISCORD_BOT_TOKEN"
+  ],
   "dependencies": true,
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "channels": [
+    "*"
+  ],
+  "groups": [
+    "*"
+  ]
 }

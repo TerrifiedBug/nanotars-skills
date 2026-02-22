@@ -36,7 +36,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
    ```bash
    echo 'NOTION_API_KEY=YOUR_KEY_HERE' >> .env
    ```
-3. **Group Scoping** -- Ask the user which groups should have access to Notion:
+3. **Plugin Configuration** -- Ask the user which groups should have access to Notion:
 
    - **All groups** (default) -- every group's agent can read and update Notion pages
    - **Specific groups only** -- e.g., only `main`
@@ -50,6 +50,8 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
    If all groups (or the user doesn't care), leave as `"groups": ["*"]`.
 
    Restricting access means only those groups' agents will have Notion tools. Other groups won't see the Notion API or credentials.
+
+   Also ask about channel types. If the user wants this plugin available on all channel types (WhatsApp, Discord, etc.), leave `"channels": ["*"]`. To restrict, set `"channels"` to specific types (e.g., `["whatsapp"]`). Most users will want the default.
 
 4. Copy plugin files:
    ```bash

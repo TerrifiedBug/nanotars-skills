@@ -89,7 +89,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
    "
    ```
 
-5. **Group Scoping** -- Ask the user which groups should have access to email reading:
+5. **Plugin Configuration** -- Ask the user which groups should have access to email reading:
 
    - **All groups** (default) -- every group's agent can read emails
    - **Specific groups only** -- e.g., only `main`
@@ -103,6 +103,8 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
    If all groups (or the user doesn't care), leave as `"groups": ["*"]`.
 
    Restricting access means only those groups' agents will have email reading tools. Other groups won't see the IMAP tools or credentials.
+
+   Also ask about channel types. If the user wants this plugin available on all channel types (WhatsApp, Discord, etc.), leave `"channels": ["*"]`. To restrict, set `"channels"` to specific types (e.g., `["whatsapp"]`). Most users will want the default.
 
 6. Copy plugin files:
    ```bash

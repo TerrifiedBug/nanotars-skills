@@ -1,7 +1,15 @@
 {
   "name": "trains",
   "description": "UK train times via National Rail Darwin API",
-  "containerEnvVars": ["NATIONAL_RAIL_TOKEN"],
+  "containerEnvVars": [
+    "NATIONAL_RAIL_TOKEN"
+  ],
   "hooks": [],
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "channels": [
+    "*"
+  ],
+  "groups": [
+    "*"
+  ]
 }

@@ -1,7 +1,15 @@
 {
   "name": "notion",
   "description": "Notion API access for pages and databases",
-  "containerEnvVars": ["NOTION_API_KEY"],
+  "containerEnvVars": [
+    "NOTION_API_KEY"
+  ],
   "hooks": [],
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "channels": [
+    "*"
+  ],
+  "groups": [
+    "*"
+  ]
 }

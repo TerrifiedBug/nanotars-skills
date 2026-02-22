@@ -1,9 +1,19 @@
 {
   "name": "telegram",
   "description": "Telegram channel via Grammy",
-  "hooks": ["onChannel"],
+  "hooks": [
+    "onChannel"
+  ],
   "channelPlugin": true,
-  "containerEnvVars": ["TELEGRAM_BOT_TOKEN"],
+  "containerEnvVars": [
+    "TELEGRAM_BOT_TOKEN"
+  ],
   "dependencies": true,
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "channels": [
+    "*"
+  ],
+  "groups": [
+    "*"
+  ]
 }

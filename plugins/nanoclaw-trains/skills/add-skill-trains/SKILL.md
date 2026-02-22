@@ -57,7 +57,15 @@ cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/trains/
 chmod +x plugins/trains/container-skills/scripts/trains.py
 ```
 
-## Step 5: Test the Token
+## Step 5: Plugin Configuration
+
+By default this plugin is available to all groups and channel types. To restrict access, edit `plugins/trains/plugin.json` and set:
+- `"groups"` to specific group folder names (e.g., `["main"]`) instead of `["*"]`
+- `"channels"` to specific channel types (e.g., `["whatsapp"]`) instead of `["*"]`
+
+Ask the user if they want to restrict access. Most users will keep the defaults.
+
+## Step 6: Test the Token
 
 ```bash
 source .env
@@ -74,7 +82,7 @@ If it fails:
 - **HTTP 401**: Token is invalid or not yet activated (can take a few minutes after registration)
 - **Connection timeout**: Network issue, try again
 
-## Step 6: Build and Restart
+## Step 7: Build and Restart
 
 ```bash
 npm run build
