@@ -1,0 +1,5 @@
+{
+  "name": "nanoclaw-imap-read",
+  "version": "1.0.0",
+  "description": "Add read-only IMAP email access to NanoClaw agent containers. Supports multiple providers (Gmail, Yahoo, Outlook, any IMAP server). Guides through app password setup and configures environment variables. Triggers on \"add email\", \"add imap\", \"email integration\", \"read emails\"."
+}

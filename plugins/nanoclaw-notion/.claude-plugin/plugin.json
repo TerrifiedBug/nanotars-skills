@@ -1,0 +1,5 @@
+{
+  "name": "nanoclaw-notion",
+  "version": "1.0.0",
+  "description": "Add Notion API access to NanoClaw. Enables agents to read and update Notion pages and databases for project management, notes, and tracking. Guides through integration setup. Triggers on \"add notion\", \"notion setup\", \"notion integration\", \"notion api\"."
+}

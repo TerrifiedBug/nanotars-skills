@@ -1,0 +1,5 @@
+{
+  "name": "nanoclaw-norish",
+  "version": "1.0.0",
+  "description": "Add Norish recipe import to NanoClaw agents. Send recipe URLs to your Norish instance for automatic import. Triggers on \"add norish\", \"norish setup\", \"recipe import\", \"norish integration\"."
+}

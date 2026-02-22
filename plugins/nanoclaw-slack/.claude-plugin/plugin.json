@@ -1,0 +1,5 @@
+{
+  "name": "nanoclaw-slack",
+  "version": "1.0.0",
+  "description": "Add Slack as a messaging channel. Uses Socket Mode (no public URL needed). Triggers on \"add slack\", \"slack setup\", \"slack channel\"."
+}

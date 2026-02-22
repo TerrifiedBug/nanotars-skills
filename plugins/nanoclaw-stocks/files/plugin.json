@@ -1,0 +1,7 @@
+{
+  "name": "stocks",
+  "description": "Stock price and financial data lookups via Yahoo Finance",
+  "containerEnvVars": [],
+  "hooks": [],
+  "version": "1.0.0"
+}

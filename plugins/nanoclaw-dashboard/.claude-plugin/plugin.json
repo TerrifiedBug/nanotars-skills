@@ -1,0 +1,5 @@
+{
+  "name": "nanoclaw-dashboard",
+  "version": "1.0.0",
+  "description": "Add admin dashboard with system monitoring and task management. Triggers on \"add dashboard\", \"dashboard setup\", \"admin dashboard\", \"dashboard skill\"."
+}

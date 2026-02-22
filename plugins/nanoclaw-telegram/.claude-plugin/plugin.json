@@ -1,0 +1,5 @@
+{
+  "name": "nanoclaw-telegram",
+  "version": "1.0.0",
+  "description": "Add Telegram as a channel. Can replace WhatsApp entirely or run alongside it. Also configurable as a control-only channel (triggers actions) or passive channel (receives notifications only)."
+}

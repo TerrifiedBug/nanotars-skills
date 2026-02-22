@@ -1,0 +1,201 @@
+{
+  "name": "nanoclaw-skills",
+  "owner": {
+    "name": "TerrifiedBug"
+  },
+  "metadata": {
+    "description": "Skills and channel integrations for NanoClaw",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "nanoclaw-brave-search",
+      "source": "./plugins/nanoclaw-brave-search",
+      "description": "Add Brave Search API access to NanoClaw agent containers. Enables web search for research, current events, and fact-checking. Guides through free API key setup. Triggers on \"add brave search\", \"brave search\", \"web search setup\", \"add search\".",
+      "version": "1.0.0",
+      "category": "search"
+    },
+    {
+      "name": "nanoclaw-calendar",
+      "source": "./plugins/nanoclaw-calendar",
+      "description": "Add calendar access to NanoClaw. Supports Google Calendar (gog CLI with OAuth) and CalDAV providers (iCloud, Nextcloud, Fastmail via cal CLI). Guides through authentication and configures environment variables. Triggers on \"add calendar\", \"add caldav\", \"icloud calendar\", \"google calendar\", \"calendar setup\".",
+      "version": "1.0.0",
+      "category": "productivity"
+    },
+    {
+      "name": "nanoclaw-changedetection",
+      "source": "./plugins/nanoclaw-changedetection",
+      "description": "Add changedetection.io integration to NanoClaw. Enables agents to create and manage website watches for price monitoring, stock alerts, and content changes. Guides through API key setup and webhook configuration. Triggers on \"add changedetection\", \"changedetection setup\", \"price monitoring\", \"website monitoring\".",
+      "version": "1.0.0",
+      "category": "monitoring"
+    },
+    {
+      "name": "nanoclaw-claude-mem",
+      "source": "./plugins/nanoclaw-claude-mem",
+      "description": "Add persistent memory (claude-mem) to NanoClaw agent containers. Creates systemd services for the worker daemon and Docker bridge, configures env vars. Run once after claude-mem plugin is installed.",
+      "version": "1.0.0",
+      "category": "utilities"
+    },
+    {
+      "name": "nanoclaw-commute",
+      "source": "./plugins/nanoclaw-commute",
+      "description": "Add travel time and commute lookup to NanoClaw agents using Waze live traffic data. No API key needed. Triggers on \"add commute\", \"commute setup\", \"travel time\", \"waze\".",
+      "version": "1.0.0",
+      "category": "utilities"
+    },
+    {
+      "name": "nanoclaw-cs2-esports",
+      "source": "./plugins/nanoclaw-cs2-esports",
+      "description": "Add CS2 esports match tracking to NanoClaw. Shows upcoming Counter-Strike 2 matches from Liquipedia. Triggers on \"cs2 matches\", \"esports schedule\", \"counter-strike\".",
+      "version": "1.0.0",
+      "category": "monitoring"
+    },
+    {
+      "name": "nanoclaw-dashboard",
+      "source": "./plugins/nanoclaw-dashboard",
+      "description": "Add admin dashboard with system monitoring and task management. Triggers on \"add dashboard\", \"dashboard setup\", \"admin dashboard\", \"dashboard skill\".",
+      "version": "1.0.0",
+      "category": "productivity"
+    },
+    {
+      "name": "nanoclaw-discord",
+      "source": "./plugins/nanoclaw-discord",
+      "description": "Add Discord as a channel. Runs alongside WhatsApp or other channels.",
+      "version": "1.0.0",
+      "category": "channels"
+    },
+    {
+      "name": "nanoclaw-freshrss",
+      "source": "./plugins/nanoclaw-freshrss",
+      "description": "Add FreshRSS feed reader integration to NanoClaw. Connects agents to a self-hosted FreshRSS instance for news summaries, unread articles, feed management, and daily digests. Guides through API key setup and configures environment. Triggers on \"add freshrss\", \"freshrss setup\", \"rss feeds\", \"add rss\".",
+      "version": "1.0.0",
+      "category": "monitoring"
+    },
+    {
+      "name": "nanoclaw-giphy",
+      "source": "./plugins/nanoclaw-giphy",
+      "description": "Add GIF search and sending to NanoClaw agents via Giphy API. Enables humorous GIF reactions in conversations. Guides through free API key setup. Triggers on \"add giphy\", \"gif search\", \"add gifs\", \"giphy setup\".",
+      "version": "1.0.0",
+      "category": "media"
+    },
+    {
+      "name": "nanoclaw-github",
+      "source": "./plugins/nanoclaw-github",
+      "description": "Add GitHub API access to NanoClaw. Enables agents to monitor repos, check PRs, issues, commits, and CI status. Guides through Personal Access Token setup. Triggers on \"add github\", \"github setup\", \"github integration\", \"github token\".",
+      "version": "1.0.0",
+      "category": "monitoring"
+    },
+    {
+      "name": "nanoclaw-gmail",
+      "source": "./plugins/nanoclaw-gmail",
+      "description": "Add Gmail access to NanoClaw via gog CLI (Google Workspace CLI). Agents can search, read, and send emails. Shares OAuth credentials with Google Calendar if already configured. Triggers on \"add gmail\", \"gmail setup\", \"gmail integration\", \"email setup\".",
+      "version": "1.0.0",
+      "category": "productivity"
+    },
+    {
+      "name": "nanoclaw-homeassistant",
+      "source": "./plugins/nanoclaw-homeassistant",
+      "description": "Add Home Assistant integration to NanoClaw via official MCP Server. Enables agents to control smart home devices, query states, and manage automations. Guides through HA MCP Server setup and configures environment. Triggers on \"add home assistant\", \"add homeassistant\", \"home assistant setup\", \"smart home\".",
+      "version": "1.0.0",
+      "category": "smart-home"
+    },
+    {
+      "name": "nanoclaw-imap-read",
+      "source": "./plugins/nanoclaw-imap-read",
+      "description": "Add read-only IMAP email access to NanoClaw agent containers. Supports multiple providers (Gmail, Yahoo, Outlook, any IMAP server). Guides through app password setup and configures environment variables. Triggers on \"add email\", \"add imap\", \"email integration\", \"read emails\".",
+      "version": "1.0.0",
+      "category": "productivity"
+    },
+    {
+      "name": "nanoclaw-n8n",
+      "source": "./plugins/nanoclaw-n8n",
+      "description": "Add n8n workflow automation integration to NanoClaw. Enables agents to create monitoring workflows that trigger webhooks instead of burning tokens on frequent polling. Guides through MCP server setup and configures environment. Triggers on \"add n8n\", \"n8n setup\", \"n8n integration\", \"workflow automation\".",
+      "version": "1.0.0",
+      "category": "monitoring"
+    },
+    {
+      "name": "nanoclaw-norish",
+      "source": "./plugins/nanoclaw-norish",
+      "description": "Add Norish recipe import to NanoClaw agents. Send recipe URLs to your Norish instance for automatic import. Triggers on \"add norish\", \"norish setup\", \"recipe import\", \"norish integration\".",
+      "version": "1.0.0",
+      "category": "utilities"
+    },
+    {
+      "name": "nanoclaw-notion",
+      "source": "./plugins/nanoclaw-notion",
+      "description": "Add Notion API access to NanoClaw. Enables agents to read and update Notion pages and databases for project management, notes, and tracking. Guides through integration setup. Triggers on \"add notion\", \"notion setup\", \"notion integration\", \"notion api\".",
+      "version": "1.0.0",
+      "category": "productivity"
+    },
+    {
+      "name": "nanoclaw-parallel",
+      "source": "./plugins/nanoclaw-parallel",
+      "description": "Add Parallel AI web research to NanoClaw via MCP Servers. Enables quick web search and deep research tasks with citations. Guides through API key setup. Triggers on \"add parallel\", \"parallel ai\", \"parallel setup\", \"web research\".",
+      "version": "1.0.0",
+      "category": "search"
+    },
+    {
+      "name": "nanoclaw-slack",
+      "source": "./plugins/nanoclaw-slack",
+      "description": "Add Slack as a messaging channel. Uses Socket Mode (no public URL needed). Triggers on \"add slack\", \"slack setup\", \"slack channel\".",
+      "version": "1.0.0",
+      "category": "channels"
+    },
+    {
+      "name": "nanoclaw-stocks",
+      "source": "./plugins/nanoclaw-stocks",
+      "description": "Add stock price and financial data lookups via Yahoo Finance. Triggers on stock price questions, ticker lookups, market data requests.",
+      "version": "1.0.0",
+      "category": "monitoring"
+    },
+    {
+      "name": "nanoclaw-telegram-swarm",
+      "source": "./plugins/nanoclaw-telegram-swarm",
+      "description": "Add Agent Swarm (Teams) support to Telegram. Each subagent gets its own bot identity in the group. Requires Telegram channel to be set up first (use /add-channel-telegram). Triggers on \"agent swarm\", \"agent teams telegram\", \"telegram swarm\", \"bot pool\".",
+      "version": "1.0.0",
+      "category": "utilities"
+    },
+    {
+      "name": "nanoclaw-telegram",
+      "source": "./plugins/nanoclaw-telegram",
+      "description": "Add Telegram as a channel. Can replace WhatsApp entirely or run alongside it. Also configurable as a control-only channel (triggers actions) or passive channel (receives notifications only).",
+      "version": "1.0.0",
+      "category": "channels"
+    },
+    {
+      "name": "nanoclaw-trains",
+      "source": "./plugins/nanoclaw-trains",
+      "description": "Add UK train departure/arrival information to NanoClaw via National Rail Darwin API. Guides through free API token registration and configures environment. Triggers on \"add trains\", \"train times\", \"national rail\", \"uk trains setup\".",
+      "version": "1.0.0",
+      "category": "utilities"
+    },
+    {
+      "name": "nanoclaw-transcription",
+      "source": "./plugins/nanoclaw-transcription",
+      "description": "Add voice message transcription to NanoClaw using OpenAI's Whisper API. Automatically transcribes voice notes so the agent can read and respond to them. Triggers on \"add transcription\", \"voice transcription\", \"whisper\", \"transcribe voice\".",
+      "version": "1.0.0",
+      "category": "media"
+    },
+    {
+      "name": "nanoclaw-weather",
+      "source": "./plugins/nanoclaw-weather",
+      "description": "Add weather lookup capability to NanoClaw agents. Uses free wttr.in and Open-Meteo APIs \u2014 no API key needed. Triggers on \"add weather\", \"weather setup\", \"weather skill\".",
+      "version": "1.0.0",
+      "category": "utilities"
+    },
+    {
+      "name": "nanoclaw-webhook",
+      "source": "./plugins/nanoclaw-webhook",
+      "description": "Add a webhook HTTP endpoint so external services (Home Assistant, uptime monitors, Proxmox) can push events that trigger agent turns. Avoids token-wasting cron polling. Triggers on \"webhook\", \"add webhook\", \"http endpoint\", \"push events\", \"webhook endpoint\".",
+      "version": "1.0.0",
+      "category": "monitoring"
+    },
+    {
+      "name": "nanoclaw-whatsapp",
+      "source": "./plugins/nanoclaw-whatsapp",
+      "description": "Add WhatsApp as a channel. Install the WhatsApp channel plugin and authenticate.",
+      "version": "1.0.0",
+      "category": "channels"
+    }
+  ]
+}

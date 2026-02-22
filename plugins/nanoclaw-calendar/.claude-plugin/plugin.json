@@ -1,0 +1,5 @@
+{
+  "name": "nanoclaw-calendar",
+  "version": "1.0.0",
+  "description": "Add calendar access to NanoClaw. Supports Google Calendar (gog CLI with OAuth) and CalDAV providers (iCloud, Nextcloud, Fastmail via cal CLI). Guides through authentication and configures environment variables. Triggers on \"add calendar\", \"add caldav\", \"icloud calendar\", \"google calendar\", \"calendar setup\"."
+}

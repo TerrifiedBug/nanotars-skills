@@ -1,0 +1,5 @@
+{
+  "name": "nanoclaw-weather",
+  "version": "1.0.0",
+  "description": "Add weather lookup capability to NanoClaw agents. Uses free wttr.in and Open-Meteo APIs \u2014 no API key needed. Triggers on \"add weather\", \"weather setup\", \"weather skill\"."
+}

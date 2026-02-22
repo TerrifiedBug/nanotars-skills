@@ -1,0 +1,5 @@
+{
+  "name": "nanoclaw-brave-search",
+  "version": "1.0.0",
+  "description": "Add Brave Search API access to NanoClaw agent containers. Enables web search for research, current events, and fact-checking. Guides through free API key setup. Triggers on \"add brave search\", \"brave search\", \"web search setup\", \"add search\"."
+}
