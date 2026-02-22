@@ -56,6 +56,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
 4. Copy plugin files:
    ```bash
    cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/notion/
+   echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-notion"}' > plugins/notion/.marketplace.json
    ```
 
 5. Rebuild and restart:

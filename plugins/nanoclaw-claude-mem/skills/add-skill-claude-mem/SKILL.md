@@ -142,6 +142,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
 10. Copy plugin files:
     ```bash
     cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/claude-mem/
+    echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-claude-mem"}' > plugins/claude-mem/.marketplace.json
     ```
 
 11. **Plugin Configuration:** By default this plugin is available to all groups and channel types. To restrict access, edit `plugins/claude-mem/plugin.json` and set:

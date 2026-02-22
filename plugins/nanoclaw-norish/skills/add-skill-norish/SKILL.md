@@ -41,6 +41,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
 3. Copy plugin files:
    ```bash
    cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/norish/
+   echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-norish"}' > plugins/norish/.marketplace.json
    ```
 
 4. **Plugin Configuration:** By default this plugin is available to all groups and channel types. To restrict access, edit `plugins/norish/plugin.json` and set:

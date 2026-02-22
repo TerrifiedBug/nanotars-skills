@@ -65,6 +65,7 @@ cp .env data/env/env
 
 ```bash
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/parallel/
+echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-parallel"}' > plugins/parallel/.marketplace.json
 ```
 
 ## Step 5: Plugin Configuration

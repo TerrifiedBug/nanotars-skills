@@ -56,6 +56,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
 4. Copy plugin files:
    ```bash
    cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/github/
+   echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-github"}' > plugins/github/.marketplace.json
    ```
 
 5. Rebuild and restart:

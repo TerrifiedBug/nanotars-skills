@@ -25,6 +25,7 @@ Check if `plugins/channels/telegram/` exists. If not, copy from skill template f
 
 ```bash
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/* plugins/channels/telegram/
+echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-telegram"}' > plugins/channels/telegram/.marketplace.json
 ```
 
 Then install dependencies:

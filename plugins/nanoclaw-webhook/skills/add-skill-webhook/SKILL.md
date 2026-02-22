@@ -37,6 +37,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
 If `NEED_PLUGIN`: copy plugin files first:
 ```bash
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/webhook/
+echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-webhook"}' > plugins/webhook/.marketplace.json
 ```
 
 ### 1a. Plugin Configuration

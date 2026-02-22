@@ -65,6 +65,7 @@ Wait for the user to provide the bot token.
    ```bash
    mkdir -p plugins/channels/discord
    cp -r ${CLAUDE_PLUGIN_ROOT}/files/* plugins/channels/discord/
+   echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-discord"}' > plugins/channels/discord/.marketplace.json
    ```
 
 4. Add bot token to `.env` (get from user, never echo full token):

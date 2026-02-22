@@ -28,6 +28,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
 1. Copy plugin files:
    ```bash
    cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/gif-search/
+   echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-giphy"}' > plugins/gif-search/.marketplace.json
    ```
 2. **Plugin Configuration:** By default this plugin is available to all groups and channel types. To restrict access, edit `plugins/gif-search/plugin.json` and set:
    - `"groups"` to specific group folder names (e.g., `["main"]`) instead of `["*"]`

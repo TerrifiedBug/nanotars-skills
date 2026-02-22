@@ -35,6 +35,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
 2. Copy plugin files:
    ```bash
    cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/cs2-esports/
+   echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-cs2-esports"}' > plugins/cs2-esports/.marketplace.json
    ```
 
 3. **Plugin Configuration:** By default this plugin is available to all groups and channel types. To restrict access, edit `plugins/cs2-esports/plugin.json` and set:

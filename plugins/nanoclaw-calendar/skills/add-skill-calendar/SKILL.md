@@ -138,6 +138,7 @@ cp ${CLAUDE_PLUGIN_ROOT}/files/container-skills/SKILL.md plugins/calendar/contai
 cp ${CLAUDE_PLUGIN_ROOT}/files/Dockerfile.partial plugins/calendar/
 cp ${CLAUDE_PLUGIN_ROOT}/files/package.json ${CLAUDE_PLUGIN_ROOT}/files/package-lock.json ${CLAUDE_PLUGIN_ROOT}/files/tsconfig.json plugins/calendar/cal-cli/
 cp ${CLAUDE_PLUGIN_ROOT}/files/src/*.ts plugins/calendar/cal-cli/src/
+echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-calendar"}' > plugins/calendar/.marketplace.json
 ```
 
 ### Step 6: Configure Container Mounts

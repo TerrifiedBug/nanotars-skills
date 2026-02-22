@@ -38,6 +38,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
    ```bash
    mkdir -p plugins/channels/whatsapp
    cp -r ${CLAUDE_PLUGIN_ROOT}/files/* plugins/channels/whatsapp/
+   echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-whatsapp"}' > plugins/channels/whatsapp/.marketplace.json
    ```
 
 3. The plugin has `"dependencies": true` in its manifest, so the plugin-loader will run `npm install` automatically on first startup. To install dependencies now:
