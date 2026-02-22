@@ -54,7 +54,6 @@ echo 'NATIONAL_RAIL_TOKEN=THE_TOKEN_HERE' >> .env
 
 ```bash
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/trains/
-echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-trains"}' > plugins/trains/.marketplace.json
 chmod +x plugins/trains/container-skills/scripts/trains.py
 ```
 

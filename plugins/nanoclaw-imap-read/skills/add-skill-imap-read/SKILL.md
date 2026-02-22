@@ -109,7 +109,6 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
 6. Copy plugin files:
    ```bash
    cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/imap-read/
-   echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-imap-read"}' > plugins/imap-read/.marketplace.json
    ```
 
 7. Rebuild and restart:

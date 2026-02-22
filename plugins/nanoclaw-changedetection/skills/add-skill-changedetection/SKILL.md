@@ -60,7 +60,6 @@ echo 'CHANGEDETECTION_API_KEY=THE_KEY_HERE' >> .env
 
 ```bash
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/changedetection/
-echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-changedetection"}' > plugins/changedetection/.marketplace.json
 ```
 
 ## Step 5: Plugin Configuration

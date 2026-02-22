@@ -114,7 +114,6 @@ Also ask about channel types. If the user wants this plugin available on all cha
 
 ```bash
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/n8n/
-echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-n8n"}' > plugins/n8n/.marketplace.json
 ```
 
 ## Step 7: Test n8n API Connection

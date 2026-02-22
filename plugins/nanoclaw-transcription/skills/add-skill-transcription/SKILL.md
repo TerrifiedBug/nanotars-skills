@@ -60,7 +60,6 @@ echo "OPENAI_API_KEY=THE_KEY_HERE" >> .env
 
 ```bash
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/transcription/
-echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-transcription"}' > plugins/transcription/.marketplace.json
 ```
 
 The plugin loader handles `npm install` automatically on next startup (`dependencies: true` in manifest).
