@@ -68,7 +68,6 @@ echo 'FRESHRSS_API_KEY=THE_API_KEY_HERE' >> .env
 
 ```bash
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/freshrss/
-echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-freshrss"}' > plugins/freshrss/.marketplace.json
 ```
 
 ## Step 5: Plugin Configuration

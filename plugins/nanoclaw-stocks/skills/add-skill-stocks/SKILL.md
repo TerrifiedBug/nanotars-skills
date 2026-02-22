@@ -34,7 +34,6 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
 2. Copy plugin files:
    ```bash
    cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/stocks/
-   echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-stocks"}' > plugins/stocks/.marketplace.json
    ```
 
 3. **Plugin Configuration:** By default this plugin is available to all groups and channel types. To restrict access, edit `plugins/stocks/plugin.json` and set:

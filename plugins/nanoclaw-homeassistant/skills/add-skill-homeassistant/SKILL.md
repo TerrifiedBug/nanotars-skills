@@ -130,7 +130,6 @@ Also ask about channel types. If the user wants this plugin available on all cha
 
 ```bash
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/homeassistant/
-echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-homeassistant"}' > plugins/homeassistant/.marketplace.json
 ```
 
 ## Step 8: Build and Restart

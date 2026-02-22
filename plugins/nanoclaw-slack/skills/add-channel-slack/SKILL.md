@@ -26,7 +26,6 @@ Check if `plugins/channels/slack/` exists. If not, copy from skill template file
 ```bash
 mkdir -p plugins/channels/slack
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/* plugins/channels/slack/
-echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-slack"}' > plugins/channels/slack/.marketplace.json
 ```
 
 Then install dependencies:

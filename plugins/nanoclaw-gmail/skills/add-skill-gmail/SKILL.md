@@ -150,7 +150,6 @@ Also ask about channel types. If the user wants this plugin available on all cha
 
 ```bash
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/gmail/
-echo '{"marketplace":"nanoclaw-skills","plugin":"nanoclaw-gmail"}' > plugins/gmail/.marketplace.json
 ```
 
 ## Step 7: Build and Restart
