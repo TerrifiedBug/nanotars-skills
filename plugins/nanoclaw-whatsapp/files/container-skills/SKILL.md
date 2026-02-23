@@ -41,6 +41,7 @@ Pass your agent role name as the `sender` parameter. If omitted, messages appear
 ## Platform notes
 
 - Messages are plain text only (no markdown rendering)
+- **Never use angle brackets (`<` or `>`) in messages** — WhatsApp interprets them as HTML tags and silently truncates everything after the `<`. Use parentheses, quotes, or dashes instead.
 - Long messages may be truncated by WhatsApp — keep responses concise
 - Voice notes are transcribed automatically if the transcription plugin is installed
 - **Animated GIFs are not well supported** — WhatsApp strips animation or renders them as static images. Send animated content as MP4 video instead (use `mp4_url` from GIF search results)
