@@ -1,0 +1,84 @@
+name: Auto Version Bump
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/*/files/**'
+      - 'plugins/*/.claude-plugin/**'
+      - 'plugins/*/skills/**'
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    # Skip if this push was made by the bot (prevents infinite loop)
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect changed plugins
+        id: detect
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'plugins/*/files/' 'plugins/*/skills/' | sed 's|plugins/\([^/]*\)/.*|\1|' | sort -u | tr '\n' ' ')
+          echo "plugins=${CHANGED}" >> $GITHUB_OUTPUT
+          echo "Changed plugins: ${CHANGED:-none}"
+
+      - name: Determine bump level from PR labels
+        id: level
+        run: |
+          PR_NUM=$(git log -1 --format='%s' | grep -oP '#\K[0-9]+' | head -1 || true)
+          LEVEL="patch"
+          if [ -n "$PR_NUM" ]; then
+            LABELS=$(gh pr view "$PR_NUM" --json labels --jq '.labels[].name' 2>/dev/null || true)
+            if echo "$LABELS" | grep -qw "major"; then LEVEL="major"
+            elif echo "$LABELS" | grep -qw "minor"; then LEVEL="minor"; fi
+          fi
+          echo "level=${LEVEL}" >> $GITHUB_OUTPUT
+          echo "Bump level: ${LEVEL}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump versions
+        id: bump
+        run: |
+          BUMPED=""
+          for PLUGIN in ${{ steps.detect.outputs.plugins }}; do
+            [ -z "$PLUGIN" ] && continue
+            FILES_JSON="plugins/${PLUGIN}/files/plugin.json"
+            META_JSON="plugins/${PLUGIN}/.claude-plugin/plugin.json"
+            [ ! -f "$FILES_JSON" ] && continue
+
+            CURRENT=$(jq -r '.version // "1.0.0"' "$FILES_JSON")
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+            case "${{ steps.level.outputs.level }}" in
+              major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH + 1)) ;;
+            esac
+
+            NEW="${MAJOR}.${MINOR}.${PATCH}"
+            jq --arg v "$NEW" '.version = $v' "$FILES_JSON" > tmp.json && mv tmp.json "$FILES_JSON"
+
+            if [ -f "$META_JSON" ]; then
+              jq --arg v "$NEW" '.version = $v' "$META_JSON" > tmp.json && mv tmp.json "$META_JSON"
+            fi
+
+            echo "${PLUGIN}: ${CURRENT} -> ${NEW}"
+            BUMPED="${BUMPED} ${PLUGIN}"
+          done
+          echo "bumped=${BUMPED}" >> $GITHUB_OUTPUT
+
+      - name: Commit and push
+        if: steps.bump.outputs.bumped != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add plugins/*/files/plugin.json plugins/*/.claude-plugin/plugin.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: auto-bump plugin versions"
+            git push
+          fi
