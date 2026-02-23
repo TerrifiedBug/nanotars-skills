@@ -3,11 +3,7 @@
   "description": "Travel time via Waze live traffic data",
   "containerEnvVars": [],
   "hooks": [],
-  "version": "1.0.0",
-  "channels": [
-    "*"
-  ],
-  "groups": [
-    "*"
-  ]
+  "channels": ["*"],
+  "groups": ["*"],
+  "version": "1.0.0"
 }

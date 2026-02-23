@@ -16,8 +16,8 @@ Check if `NATIONAL_RAIL_TOKEN` is set:
 python3 -c "import os; print('API' if os.environ.get('NATIONAL_RAIL_TOKEN') else 'SCRAPE')"
 ```
 
-- **API** -> Use the Darwin API commands below (structured JSON, reliable)
-- **SCRAPE** -> Use the WebFetch fallback below (less reliable, use as last resort)
+- **API** → Use the Darwin API commands below (structured JSON, reliable)
+- **SCRAPE** → Use the WebFetch fallback below (less reliable, use as last resort)
 
 ## Darwin API (preferred)
 
@@ -51,8 +51,8 @@ JSON with:
 ### Getting Arrival Times
 
 To show both departure and arrival times, make two calls:
-1. `departures DID to PAD` -- get departure times
-2. `arrivals PAD from DID` -- get arrival times
+1. `departures DID to PAD` — get departure times
+2. `arrivals PAD from DID` — get arrival times
 Match services by the numeric prefix in serviceID.
 
 ## WebFetch Fallback (no API token)
@@ -67,7 +67,7 @@ Examples:
 - Departures from Didcot to Paddington: `https://www.nationalrail.co.uk/live-trains/departures/DID/PAD`
 - Departures from Paddington to Didcot: `https://www.nationalrail.co.uk/live-trains/departures/PAD/DID`
 
-Extract train times, status (on time/delayed/cancelled), and platform numbers from the page content. This method is less reliable than the API -- data may be incomplete or hard to parse.
+Extract train times, status (on time/delayed/cancelled), and platform numbers from the page content. This method is less reliable than the API — data may be incomplete or hard to parse.
 
 ## Station Codes
 
@@ -89,13 +89,13 @@ Use `search` (API mode) to find any station code.
 ## WhatsApp Message Template
 
 ```
-{Origin} -> {Destination}
+🚂 {Origin} → {Destination}
 
-*{dep} -> {arr}* | Plt {platform} | {coaches} coaches
+*{dep} → {arr}* │📍{platform} │ 🚃 {coaches}
 {status}
 ```
 
-Status indicators:
-- On time
-- Delayed (exp {time})
-- Cancelled -- {reason}
+Status icons:
+- ✅ On time
+- ⚠️ Delayed (exp {time})
+- ❌ Cancelled — {reason}

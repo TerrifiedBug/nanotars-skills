@@ -2,15 +2,9 @@
   "name": "transcription",
   "description": "Voice message transcription via OpenAI Whisper",
   "containerEnvVars": [],
-  "hooks": [
-    "onInboundMessage"
-  ],
+  "hooks": ["onInboundMessage"],
   "dependencies": true,
-  "version": "1.0.0",
-  "channels": [
-    "*"
-  ],
-  "groups": [
-    "*"
-  ]
+  "channels": ["*"],
+  "groups": ["*"],
+  "version": "1.0.0"
 }

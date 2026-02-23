@@ -1,20 +1,10 @@
 {
   "name": "freshrss",
   "description": "FreshRSS feed reader integration",
-  "containerEnvVars": [
-    "FRESHRSS_URL",
-    "FRESHRSS_USER",
-    "FRESHRSS_API_KEY"
-  ],
-  "publicEnvVars": [
-    "FRESHRSS_URL"
-  ],
+  "containerEnvVars": ["FRESHRSS_URL", "FRESHRSS_USER", "FRESHRSS_API_KEY"],
+  "publicEnvVars": ["FRESHRSS_URL"],
   "hooks": [],
-  "version": "1.0.0",
-  "channels": [
-    "*"
-  ],
-  "groups": [
-    "*"
-  ]
+  "channels": ["*"],
+  "groups": ["*"],
+  "version": "1.0.0"
 }

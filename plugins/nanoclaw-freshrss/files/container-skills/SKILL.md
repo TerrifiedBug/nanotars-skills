@@ -9,9 +9,9 @@ allowed-tools: Bash(curl:*)
 Access the user's self-hosted FreshRSS instance via the Google Reader API. Requires `$FRESHRSS_URL`, `$FRESHRSS_USER`, and `$FRESHRSS_API_KEY` environment variables. If not configured, tell the user to run `/add-freshrss` on the host to set it up.
 
 **Environment variables:**
-- `FRESHRSS_URL` -- Base URL of the FreshRSS instance (no trailing slash)
-- `FRESHRSS_USER` -- FreshRSS username (for GReader API auth)
-- `FRESHRSS_API_KEY` -- API password (set in FreshRSS > Settings > Profile > API Management)
+- `FRESHRSS_URL` — Base URL of the FreshRSS instance (no trailing slash)
+- `FRESHRSS_USER` — FreshRSS username (for GReader API auth)
+- `FRESHRSS_API_KEY` — API password (set in FreshRSS > Settings > Profile > API Management)
 
 ## Authentication
 
@@ -127,8 +127,8 @@ curl -s "$FRESHRSS_URL/api/greader.php/reader/api/0/subscription/edit" \
 
 - Always authenticate first and store the token in `$AUTH` before making requests
 - The `n` parameter controls how many results to return (default varies)
-- Article summaries contain HTML -- strip tags for clean text if needed: `| sed 's/<[^>]*>//g'`
-- `published` is a Unix timestamp -- use `jq` `todate` to convert
+- Article summaries contain HTML — strip tags for clean text if needed: `| sed 's/<[^>]*>//g'`
+- `published` is a Unix timestamp — use `jq` `todate` to convert
 - The `xt` parameter excludes tags (e.g., `xt=user/-/state/com.google/read` excludes read items)
 - When summarizing feeds, focus on titles and sources first, then fetch full content only if the user asks for details
 - For daily digests, get unread articles sorted by feed/category for a structured overview

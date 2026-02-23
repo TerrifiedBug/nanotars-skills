@@ -10,7 +10,7 @@ Control smart home devices via Home Assistant's MCP Server integration. If MCP t
 
 ## How It Works
 
-Home Assistant is connected as an MCP server. You have native MCP tools available -- use them directly to control devices, query states, and manage automations. Look for tools prefixed with `mcp__home-assistant`.
+Home Assistant is connected as an MCP server. You have native MCP tools available — use them directly to control devices, query states, and manage automations. Look for tools prefixed with `mcp__home-assistant`.
 
 ## Usage
 
@@ -51,7 +51,7 @@ curl -s -X POST "$HA_URL/api/services/{domain}/{service}" \
 
 ## Event-Driven Alerts
 
-For "alert me when X happens" based on HA state changes, you MUST create an **HA automation** -- never use scheduled tasks or n8n polling for HA state changes. HA automations are instant (event-driven), token-free, and the correct approach.
+For "alert me when X happens" based on HA state changes, you MUST create an **HA automation** — never use scheduled tasks or n8n polling for HA state changes. HA automations are instant (event-driven), token-free, and the correct approach.
 
 ### Step 1: Check rest_command.nanoclaw_webhook
 
@@ -80,7 +80,7 @@ echo "WEBHOOK_SECRET: $NANOCLAW_WEBHOOK_SECRET"
 
 Then give the user the exact YAML to add to their HA config files. Substitute the real values from the env vars above into the examples below.
 
-**configuration.yaml** -- add under `rest_command:` (or create the section if it doesn't exist):
+**configuration.yaml** — add under `rest_command:` (or create the section if it doesn't exist):
 
 ```yaml
 rest_command:
@@ -95,13 +95,13 @@ rest_command:
 
 Note: `content_type` MUST be a top-level field (same level as `url`/`method`), NOT inside `headers`. HA will send an empty body without it.
 
-**secrets.yaml** -- add this line (the `Bearer ` prefix with the trailing space is required):
+**secrets.yaml** — add this line (the `Bearer ` prefix with the trailing space is required):
 
 ```yaml
 nanoclaw_webhook_secret: "Bearer ACTUAL_WEBHOOK_SECRET"
 ```
 
-Replace `ACTUAL_WEBHOOK_URL` and `ACTUAL_WEBHOOK_SECRET` with the real values you read from the env vars above. The `Bearer ` prefix MUST be included in the secrets.yaml value -- HA's `!secret` does a direct text substitution, so the full Authorization header value (including `Bearer `) must be in the secret.
+Replace `ACTUAL_WEBHOOK_URL` and `ACTUAL_WEBHOOK_SECRET` with the real values you read from the env vars above. The `Bearer ` prefix MUST be included in the secrets.yaml value — HA's `!secret` does a direct text substitution, so the full Authorization header value (including `Bearer `) must be in the secret.
 
 After editing both files, the user must restart HA or reload the REST Command integration, then let you know when done.
 
@@ -141,7 +141,7 @@ curl -s -X POST "$HA_URL/api/config/automation/config/nanoclaw_example_alert" \
 
 Key points:
 - The automation ID (URL path) should be a descriptive slug prefixed with `nanoclaw_`
-- The action MUST use `rest_command.nanoclaw_webhook` -- this is the exact service name
+- The action MUST use `rest_command.nanoclaw_webhook` — this is the exact service name
 - Use `numeric_state` triggers for threshold alerts (above/below)
 - Use `state` triggers for on/off changes
 - Use Jinja2 templates in the message to include live sensor values
@@ -151,7 +151,7 @@ Key points:
 
 - Only entities exposed in HA's Voice assistants > Expose settings are accessible
 - To request access to more entities, tell the user to expose them in HA settings
-- MCP tools are the preferred method -- only use curl as a fallback
-- For HA-based alerts, prefer HA automations over scheduled tasks -- they're instant and native
+- MCP tools are the preferred method — only use curl as a fallback
+- For HA-based alerts, prefer HA automations over scheduled tasks — they're instant and native
 - Always check for `rest_command.nanoclaw_webhook` before creating alert automations
-- The rest_command MUST be named exactly `nanoclaw_webhook` -- do not use any other name
+- The rest_command MUST be named exactly `nanoclaw_webhook` — do not use any other name

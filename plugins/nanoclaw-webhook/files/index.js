@@ -49,6 +49,14 @@ function handleRequest(ctx, req, res) {
   }
 
   const folder = match[1] || 'main';
+
+  // Validate folder name format to prevent path traversal
+  if (!/^[a-z0-9][a-z0-9_-]*$/i.test(folder)) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Invalid folder name' }));
+    return;
+  }
+
   const route = routes[folder];
 
   if (!route) {
@@ -58,9 +66,11 @@ function handleRequest(ctx, req, res) {
     return;
   }
 
-  // Verify per-route token
+  // Verify per-route token (timing-safe comparison)
   const auth = req.headers.authorization;
-  if (!auth || auth !== `Bearer ${route.secret}`) {
+  const expected = `Bearer ${route.secret}`;
+  if (!auth || auth.length !== expected.length
+      || !crypto.timingSafeEqual(Buffer.from(auth), Buffer.from(expected))) {
     ctx.logger.warn({ ip, folder }, 'Webhook 401: auth rejected');
     res.writeHead(401, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Unauthorized' }));

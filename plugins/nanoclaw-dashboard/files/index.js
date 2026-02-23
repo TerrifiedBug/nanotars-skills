@@ -2,7 +2,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import { randomUUID } from 'crypto';
+import crypto from 'crypto';
 
 /** @type {http.Server | null} */
 let server = null;
@@ -13,25 +13,48 @@ let ctx = null;
 
 let dashboardSecret = process.env.DASHBOARD_SECRET || '';
 
+/** Timing-safe string comparison to prevent timing attacks on auth tokens. */
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+/** Session store: token → expiry timestamp (ms) */
+const sessions = new Map();
+const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function createSession() {
+  const token = crypto.randomUUID();
+  sessions.set(token, Date.now() + SESSION_MAX_AGE_MS);
+  return token;
+}
+
+function isValidSession(token) {
+  if (!token) return false;
+  const expiry = sessions.get(token);
+  if (!expiry) return false;
+  if (Date.now() > expiry) {
+    sessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
 function checkAuth(req, res) {
   if (!dashboardSecret) {
     res.writeHead(503, { 'Content-Type': 'text/plain' });
     res.end('Dashboard disabled — set DASHBOARD_SECRET in .env');
     return false;
   }
+  // Bearer token auth (API clients)
   const auth = req.headers.authorization || '';
-  if (auth === `Bearer ${dashboardSecret}`) return true;
+  if (safeEqual(auth, `Bearer ${dashboardSecret}`)) return true;
+  // Session cookie auth (browser)
   const cookies = parseCookies(req);
-  if (cookies.dashboard_token === dashboardSecret) return true;
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  if (url.searchParams.get('token') === dashboardSecret) {
-    res.writeHead(302, {
-      'Set-Cookie': `dashboard_token=${dashboardSecret}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
-      Location: '/',
-    });
-    res.end();
-    return false;
-  }
+  if (isValidSession(cookies.dashboard_session)) return true;
   return false;
 }
 
@@ -63,7 +86,7 @@ function loginPage() {
 <title>NanoClaw Dashboard</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head><body class="bg-gray-900 text-white flex items-center justify-center min-h-screen">
-<form method="GET" action="/" class="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-sm">
+<form method="POST" action="/login" class="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-sm">
   <h1 class="text-2xl font-bold mb-6 text-center">NanoClaw Dashboard</h1>
   <label class="block text-sm font-medium mb-2" for="token">Access Token</label>
   <input type="password" name="token" id="token" required
@@ -255,7 +278,7 @@ if (localStorage.getItem('dashboard-theme') === 'light') {
           class="bg-gray-800 rounded-lg p-4"></div>
       </section>
       <section>
-        <h2 class="text-lg font-semibold mb-3">Not Installed</h2>
+        <h2 class="text-lg font-semibold mb-3">Marketplace</h2>
         <div hx-get="/api/templates" hx-trigger="load" hx-swap="innerHTML"
           class="bg-gray-800 rounded-lg p-4"></div>
       </section>
@@ -573,50 +596,11 @@ function renderPlugins() {
 }
 
 function renderTemplates() {
-  try {
-    const skillsDir = path.join(process.cwd(), '.claude', 'skills');
-    const pluginsDir = path.join(process.cwd(), 'plugins');
-    const dirs = fs.readdirSync(skillsDir).filter(d => d.startsWith('add-skill-'));
-    // Build set of installed plugin names from plugins/ (flat + category subdirs)
-    const installed = new Set();
-    try {
-      for (const entry of fs.readdirSync(pluginsDir)) {
-        const ep = path.join(pluginsDir, entry);
-        if (fs.statSync(ep).isDirectory()) {
-          installed.add(entry);
-          // Category subdirectories (e.g. plugins/channels/whatsapp)
-          try {
-            for (const sub of fs.readdirSync(ep)) {
-              if (fs.statSync(path.join(ep, sub)).isDirectory()) installed.add(sub);
-            }
-          } catch {}
-        }
-      }
-    } catch {}
-    // Filter: read each template's plugin.json "name" to get the actual installed dir name
-    const available = dirs.filter(d => {
-      try {
-        const manifest = JSON.parse(fs.readFileSync(path.join(skillsDir, d, 'files', 'plugin.json'), 'utf-8'));
-        return !installed.has(manifest.name);
-      } catch {
-        // No plugin.json — fall back to dir name heuristic
-        const name = d.replace('add-skill-', '');
-        return !installed.has(name);
-      }
-    });
-    if (!available.length) return '<p class="text-gray-500 text-sm">All skill plugins installed</p>';
-    return `<div class="space-y-1 text-sm">${available.map(d => {
-      let desc = '';
-      try {
-        const skill = fs.readFileSync(path.join(skillsDir, d, 'SKILL.md'), 'utf-8');
-        const m = skill.match(/^description:\s*(.+)$/m);
-        if (m) desc = m[1].split('.')[0];
-      } catch {}
-      return `<div><code class="text-blue-400">/${d}</code>${desc ? ` <span class="text-gray-400">- ${esc(desc)}</span>` : ''}</div>`;
-    }).join('')}</div>`;
-  } catch {
-    return '<p class="text-gray-500 text-sm">Could not read templates</p>';
-  }
+  return `<div class="text-sm space-y-2">
+    <p class="text-gray-400">Skills are available from the <a href="https://github.com/TerrifiedBug/nanoclaw-skills" class="text-blue-400 hover:underline" target="_blank">NanoClaw skills marketplace</a>.</p>
+    <p class="text-gray-400">Browse and install via Claude Code:</p>
+    <code class="block text-xs text-gray-500 bg-gray-900 rounded p-2">/plugin marketplace add TerrifiedBug/nanoclaw-skills<br>/plugin install nanoclaw-weather@nanoclaw-skills</code>
+  </div>`;
 }
 
 function renderMessages(folder) {
@@ -680,16 +664,7 @@ function renderLogs() {
 }
 
 function renderRecentRuns() {
-  const tasks = ctx.getAllTasks();
-  const allLogs = [];
-  for (const t of tasks) {
-    const logs = ctx.getTaskRunLogs(t.id, 5);
-    for (const log of logs) {
-      allLogs.push({ ...log, group_folder: t.group_folder, prompt: t.prompt });
-    }
-  }
-  allLogs.sort((a, b) => new Date(b.run_at).getTime() - new Date(a.run_at).getTime());
-  const recent = allLogs.slice(0, 15);
+  const recent = ctx.getRecentTaskRunLogs ? ctx.getRecentTaskRunLogs(15) : [];
   if (!recent.length) return '<p class="text-gray-500 text-sm">No task runs yet</p>';
   let html = `<table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b border-gray-700">
     <th class="pb-2 pr-3">Time</th><th class="pb-2 pr-3">Group</th><th class="pb-2 pr-3">Prompt</th>
@@ -745,8 +720,32 @@ function handleRequest(req, res) {
   const pathname = url.pathname;
   const method = req.method;
 
+  // POST /login — authenticate and create session
+  if (method === 'POST' && pathname === '/login') {
+    parseBody(req).then(body => {
+      if (safeEqual(body.token, dashboardSecret)) {
+        const session = createSession();
+        const isLocalhost = req.headers.host?.startsWith('localhost') || req.headers.host?.startsWith('127.0.0.1');
+        const securePart = isLocalhost ? '' : ' Secure;';
+        res.writeHead(302, {
+          'Set-Cookie': `dashboard_session=${session}; Path=/; HttpOnly; SameSite=Strict;${securePart} Max-Age=86400`,
+          Location: '/',
+        });
+        res.end();
+      } else {
+        sendHtml(res, loginPage(), 401);
+      }
+    }).catch(() => sendHtml(res, loginPage(), 401));
+    return;
+  }
+
   if (pathname === '/logout') {
-    res.writeHead(302, { 'Set-Cookie': 'dashboard_token=; Path=/; Max-Age=0', Location: '/' });
+    const cookies = parseCookies(req);
+    if (cookies.dashboard_session) sessions.delete(cookies.dashboard_session);
+    res.writeHead(302, {
+      'Set-Cookie': 'dashboard_session=; Path=/; Max-Age=0',
+      Location: '/',
+    });
     res.end();
     return;
   }
@@ -805,7 +804,7 @@ function handleRequest(req, res) {
         const entry = Object.entries(groups).find(([, g]) => g.folder === body.group_folder);
         if (!entry) return sendHtml(res, '<p class="text-red-400">Group not found</p>', 400);
         ctx.createTask({
-          id: randomUUID(),
+          id: crypto.randomUUID(),
           group_folder: body.group_folder,
           chat_jid: entry[0],
           prompt: body.prompt,

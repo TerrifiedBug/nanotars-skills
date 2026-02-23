@@ -8,7 +8,7 @@ allowed-tools: Bash(gog:*,node:*,curl:*)
 
 ## Google Calendar (gog CLI)
 
-**IMPORTANT:** `gog calendar events` only queries ONE calendar at a time (defaults to primary). The user may have multiple calendars (e.g. F1 schedule, shared calendars). **Always query ALL calendars** when listing events:
+**IMPORTANT:** `gog calendar events` only queries ONE calendar at a time (defaults to primary). The user has multiple calendars (e.g. F1 schedule, shared calendars). **Always query ALL calendars** when listing events:
 
 ```bash
 for cal in $(gog calendar calendars --plain | tail -n+2 | cut -f1); do
@@ -43,18 +43,6 @@ node /opt/cal-cli/dist/index.js calendars
 List events:
 ```bash
 node /opt/cal-cli/dist/index.js events --from today --to "+7d"
-```
-
-## Multiple Google Accounts
-
-If multiple Google accounts are configured, gog uses `$GOG_ACCOUNT` as the default. To target a specific account, pass `--account`:
-```bash
-gog calendar events --from today --to "+7d" --account user@gmail.com
-```
-
-List all available accounts:
-```bash
-gog auth list
 ```
 
 ## Tips
