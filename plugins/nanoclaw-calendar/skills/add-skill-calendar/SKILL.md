@@ -132,12 +132,7 @@ Also ask about channel types. If the user wants this plugin available on all cha
 
 Copy plugin files:
 ```bash
-mkdir -p plugins/calendar/container-skills plugins/calendar/cal-cli/src
-cp ${CLAUDE_PLUGIN_ROOT}/files/plugin.json plugins/calendar/
-cp ${CLAUDE_PLUGIN_ROOT}/files/container-skills/SKILL.md plugins/calendar/container-skills/
-cp ${CLAUDE_PLUGIN_ROOT}/files/Dockerfile.partial plugins/calendar/
-cp ${CLAUDE_PLUGIN_ROOT}/files/package.json ${CLAUDE_PLUGIN_ROOT}/files/package-lock.json ${CLAUDE_PLUGIN_ROOT}/files/tsconfig.json plugins/calendar/cal-cli/
-cp ${CLAUDE_PLUGIN_ROOT}/files/src/*.ts plugins/calendar/cal-cli/src/
+cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/calendar/
 ```
 
 ### Step 6: Configure Container Mounts

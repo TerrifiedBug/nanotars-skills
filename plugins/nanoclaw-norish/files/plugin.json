@@ -1,19 +1,10 @@
 {
   "name": "norish",
   "description": "Import recipes into Norish by URL",
-  "containerEnvVars": [
-    "NORISH_URL",
-    "NORISH_API_KEY"
-  ],
-  "publicEnvVars": [
-    "NORISH_URL"
-  ],
+  "containerEnvVars": ["NORISH_URL", "NORISH_API_KEY"],
+  "publicEnvVars": ["NORISH_URL"],
   "hooks": [],
-  "version": "1.0.0",
-  "channels": [
-    "*"
-  ],
-  "groups": [
-    "*"
-  ]
+  "channels": ["*"],
+  "groups": ["*"],
+  "version": "1.0.0"
 }

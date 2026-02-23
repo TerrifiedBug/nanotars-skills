@@ -1,19 +1,10 @@
 {
   "name": "homeassistant",
   "description": "Home Assistant smart home integration via MCP",
-  "containerEnvVars": [
-    "HA_URL",
-    "HA_TOKEN"
-  ],
-  "publicEnvVars": [
-    "HA_URL"
-  ],
+  "containerEnvVars": ["HA_URL", "HA_TOKEN"],
+  "publicEnvVars": ["HA_URL"],
   "hooks": [],
-  "version": "1.0.0",
-  "channels": [
-    "*"
-  ],
-  "groups": [
-    "*"
-  ]
+  "channels": ["*"],
+  "groups": ["*"],
+  "version": "1.0.0"
 }

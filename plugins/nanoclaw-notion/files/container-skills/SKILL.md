@@ -42,6 +42,6 @@ curl -s "https://api.notion.com/v1/blocks/PAGE_ID/children" \
 
 ## Tips
 - Always use Notion-Version: 2022-06-28 header
-- Page IDs are in the URL: notion.so/PAGE_ID
+- Page IDs are in the URL: notion.so/PAGE_ID  
 - Use PATCH for updates, GET for reads
 - Rich text format for content blocks

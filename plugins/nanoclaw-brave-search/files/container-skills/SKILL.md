@@ -25,7 +25,7 @@ curl -s "https://api.search.brave.com/res/v1/web/search?q=your+query&country=GB&
 ## Response Format
 Returns JSON with `web.results[]` array containing:
 - `title` - Page title
-- `url` - Page URL
+- `url` - Page URL  
 - `description` - Snippet text
 - `published` - Publish date
 
