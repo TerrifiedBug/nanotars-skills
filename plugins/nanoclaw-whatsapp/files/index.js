@@ -9,6 +9,7 @@ import makeWASocket, {
   Browsers,
   DisconnectReason,
   downloadMediaMessage,
+  fetchLatestWaWebVersion,
   makeCacheableSignalKeyStore,
   useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
@@ -72,11 +73,21 @@ class WhatsAppChannel {
       }
     }
 
+    let waVersion;
+    try {
+      const { version } = await fetchLatestWaWebVersion({});
+      waVersion = version;
+      this.logger.info({ version }, 'Fetched latest WA Web version');
+    } catch (e) {
+      this.logger.warn({ err: e.message }, 'Failed to fetch WA Web version, using default');
+    }
+
     this.sock = makeWASocket({
       auth: {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, this.logger),
       },
+      ...(waVersion && { version: waVersion }),
       printQRInTerminal: false,
       logger: this.logger,
       browser: Browsers.macOS('Chrome'),
