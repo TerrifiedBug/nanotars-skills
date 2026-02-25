@@ -22,7 +22,9 @@ jobs:
       - name: Detect changed plugins
         id: detect
         run: |
-          CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'plugins/*/files/' 'plugins/*/skills/' | sed 's|plugins/\([^/]*\)/.*|\1|' | sort -u | tr '\n' ' ')
+          # Use diff-tree which correctly handles merge commits
+          # (git diff HEAD~1 HEAD misses files in merge commits)
+          CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD -- 'plugins/*/files/' 'plugins/*/skills/' | sed 's|plugins/\([^/]*\)/.*|\1|' | sort -u | tr '\n' ' ')
           echo "plugins=${CHANGED}" >> $GITHUB_OUTPUT
           echo "Changed plugins: ${CHANGED:-none}"
 
