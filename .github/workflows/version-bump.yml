@@ -7,12 +7,26 @@ on:
       - 'plugins/*/files/**'
       - 'plugins/*/.claude-plugin/**'
       - 'plugins/*/skills/**'
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: 'Plugin name to bump (leave empty for auto-detect)'
+        required: false
+      level:
+        description: 'Bump level'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 jobs:
   bump:
     runs-on: ubuntu-latest
     # Skip if this push was made by the bot (prevents infinite loop)
-    if: github.actor != 'github-actions[bot]'
+    if: github.event_name == 'workflow_dispatch' || github.actor != 'github-actions[bot]'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,21 +36,29 @@ jobs:
       - name: Detect changed plugins
         id: detect
         run: |
-          # Use diff-tree which correctly handles merge commits
-          # (git diff HEAD~1 HEAD misses files in merge commits)
-          CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD -- 'plugins/*/files/' 'plugins/*/skills/' | sed 's|plugins/\([^/]*\)/.*|\1|' | sort -u | tr '\n' ' ')
+          if [ -n "${{ github.event.inputs.plugin }}" ]; then
+            CHANGED="${{ github.event.inputs.plugin }} "
+          else
+            # Use diff-tree which correctly handles merge commits
+            # (git diff HEAD~1 HEAD misses files in merge commits)
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD -- 'plugins/*/files/' 'plugins/*/skills/' | sed 's|plugins/\([^/]*\)/.*|\1|' | sort -u | tr '\n' ' ')
+          fi
           echo "plugins=${CHANGED}" >> $GITHUB_OUTPUT
           echo "Changed plugins: ${CHANGED:-none}"
 
       - name: Determine bump level from PR labels
         id: level
         run: |
-          PR_NUM=$(git log -1 --format='%s' | grep -oP '#\K[0-9]+' | head -1 || true)
-          LEVEL="patch"
-          if [ -n "$PR_NUM" ]; then
-            LABELS=$(gh pr view "$PR_NUM" --json labels --jq '.labels[].name' 2>/dev/null || true)
-            if echo "$LABELS" | grep -qw "major"; then LEVEL="major"
-            elif echo "$LABELS" | grep -qw "minor"; then LEVEL="minor"; fi
+          if [ -n "${{ github.event.inputs.level }}" ]; then
+            LEVEL="${{ github.event.inputs.level }}"
+          else
+            PR_NUM=$(git log -1 --format='%s' | grep -oP '#\K[0-9]+' | head -1 || true)
+            LEVEL="patch"
+            if [ -n "$PR_NUM" ]; then
+              LABELS=$(gh pr view "$PR_NUM" --json labels --jq '.labels[].name' 2>/dev/null || true)
+              if echo "$LABELS" | grep -qw "major"; then LEVEL="major"
+              elif echo "$LABELS" | grep -qw "minor"; then LEVEL="minor"; fi
+            fi
           fi
           echo "level=${LEVEL}" >> $GITHUB_OUTPUT
           echo "Bump level: ${LEVEL}"
