@@ -39,6 +39,8 @@ class WhatsAppChannel {
   /** @private */
   ffmpegChecked = false;
   /** @private */
+  reconnectAttempt = 0;
+  /** @private */
   config;
   /** @private */
   logger;
@@ -115,21 +117,14 @@ class WhatsAppChannel {
         this.logger.info({ reason, shouldReconnect, queuedMessages: this.outgoingQueue.length }, 'Connection closed');
 
         if (shouldReconnect) {
-          this.logger.info('Reconnecting...');
-          this.connectInternal().catch((err) => {
-            this.logger.error({ err }, 'Failed to reconnect, retrying in 5s');
-            setTimeout(() => {
-              this.connectInternal().catch((err2) => {
-                this.logger.error({ err: err2 }, 'Reconnection retry failed');
-              });
-            }, 5000);
-          });
+          this.scheduleReconnect();
         } else {
           this.logger.info('Logged out. Run /add-channel-whatsapp to re-authenticate.');
           process.exit(0);
         }
       } else if (connection === 'open') {
         this.connected = true;
+        this.reconnectAttempt = 0;
         this.logger.info('Connected to WhatsApp');
 
         // Build LID to phone mapping from auth state for self-chat translation
@@ -191,6 +186,15 @@ class WhatsAppChannel {
         // Replace msg.message with unwrapped inner for downstream processing
         if (inner && inner !== msg.message) {
           msg.message = inner;
+        }
+
+        // Skip system messages that carry no user text (reactions, edits, protocol).
+        // senderKeyDistributionMessage is NOT filtered — WhatsApp bundles it
+        // alongside actual text during group key rotation.
+        const msgKeys = Object.keys(msg.message);
+        if (msgKeys.length === 1 &&
+            ['protocolMessage', 'reactionMessage', 'editedMessage'].includes(msgKeys[0])) {
+          continue;
         }
 
         // Translate LID JID to phone JID if applicable
@@ -323,6 +327,19 @@ class WhatsAppChannel {
         }
       }
     });
+  }
+
+  /** Reconnect with exponential backoff: 2s → 4s → 8s → ... capped at 5 minutes. */
+  scheduleReconnect() {
+    const delay = Math.min(2000 * Math.pow(2, this.reconnectAttempt), 300000);
+    this.reconnectAttempt++;
+    this.logger.info({ delay, attempt: this.reconnectAttempt }, 'Scheduling reconnect');
+    setTimeout(() => {
+      this.connectInternal().catch((err) => {
+        this.logger.error({ err, attempt: this.reconnectAttempt }, 'Reconnect failed');
+        this.scheduleReconnect();
+      });
+    }, delay);
   }
 
   async sendMessage(jid, text, sender, replyTo) {
