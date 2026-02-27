@@ -1,6 +1,6 @@
 ---
 name: add-skill-claude-mem
-description: Add persistent memory (claude-mem) to NanoClaw agent containers. Creates systemd services for the worker daemon and Docker bridge, configures env vars. Run once after claude-mem plugin is installed.
+description: Add persistent memory (claude-mem) to NanoClaw agent containers. Creates systemd service for the worker daemon, configures env vars. Run once after claude-mem plugin is installed.
 ---
 
 # Add Claude-Mem to Agent Containers
@@ -11,7 +11,7 @@ Run all commands automatically. Only pause if a step fails.
 
 ## How It Works
 
-The claude-mem worker daemon runs on the host (port 37777) and stores observations in a SQLite + vector DB at `/root/.claude-mem/`. A socat bridge exposes it to Docker containers via 172.17.0.1:37777.
+The claude-mem worker daemon runs on the host (port 37777, bound to `0.0.0.0`) and stores observations in a SQLite + vector DB at `/root/.claude-mem/`. Docker containers reach the host via `host.docker.internal` using the `--add-host=host.docker.internal:host-gateway` flag (configured in `container-runtime.ts`).
 
 ## Preflight
 
@@ -48,12 +48,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
    curl -s --max-time 2 http://127.0.0.1:37777/api/health >/dev/null 2>&1 && echo "WARNING: Port 37777 still in use" || echo "Port 37777 is free"
    ```
 
-3. Install socat:
-   ```bash
-   which socat >/dev/null 2>&1 && echo "socat already installed" || (apt-get update && apt-get install -y socat)
-   ```
-
-4. Create wrapper scripts at `/root/.claude-mem/`:
+3. Create wrapper scripts at `/root/.claude-mem/`:
 
    **`/root/.claude-mem/run-worker.sh`:**
    ```bash
@@ -82,7 +77,7 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
 
    Make executable: `chmod +x /root/.claude-mem/run-worker.sh /root/.claude-mem/stop-worker.sh`
 
-5. Create systemd service for claude-mem worker at `/etc/systemd/system/claude-mem-worker.service`:
+4. Create systemd service for claude-mem worker at `/etc/systemd/system/claude-mem-worker.service`:
    ```ini
    [Unit]
    Description=Claude-Mem Worker Daemon
@@ -101,56 +96,39 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
    WantedBy=multi-user.target
    ```
 
-6. Create systemd service for socat bridge at `/etc/systemd/system/claude-mem-bridge.service`:
-   ```ini
-   [Unit]
-   Description=Claude-Mem Docker Bridge (socat)
-   After=claude-mem-worker.service docker.service
-   Requires=claude-mem-worker.service
-
-   [Service]
-   Type=simple
-   ExecStart=/usr/bin/socat TCP-LISTEN:37777,bind=172.17.0.1,reuseaddr,fork TCP:127.0.0.1:37777
-   Restart=always
-   RestartSec=3
-
-   [Install]
-   WantedBy=multi-user.target
-   ```
-
-7. Enable and start services:
+5. Enable and start service:
    ```bash
    systemctl daemon-reload
-   systemctl enable claude-mem-worker claude-mem-bridge
+   systemctl enable claude-mem-worker
    systemctl start claude-mem-worker
    sleep 3
    curl -s http://127.0.0.1:37777/api/health
-   systemctl start claude-mem-bridge
    ```
 
-8. Test connectivity from a container:
+6. Test connectivity from a container:
    ```bash
-   docker run --rm --entrypoint node nanoclaw-agent:latest \
-     -e "fetch('http://172.17.0.1:37777/api/health').then(r=>r.json()).then(d=>console.log('OK:',JSON.stringify(d))).catch(e=>console.error('FAIL:',e.message))"
+   docker run --rm --add-host=host.docker.internal:host-gateway \
+     --entrypoint node nanoclaw-agent:latest \
+     -e "fetch('http://host.docker.internal:37777/api/health').then(r=>r.json()).then(d=>console.log('OK:',JSON.stringify(d))).catch(e=>console.error('FAIL:',e.message))"
    ```
 
-9. Add environment variable:
+7. Add environment variable:
    ```bash
-   grep -q "^CLAUDE_MEM_URL=" .env 2>/dev/null || echo "CLAUDE_MEM_URL=http://172.17.0.1:37777" >> .env
+   grep -q "^CLAUDE_MEM_URL=" .env 2>/dev/null || echo "CLAUDE_MEM_URL=http://host.docker.internal:37777" >> .env
    ```
 
-10. Copy plugin files:
+8. Copy plugin files:
     ```bash
     cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/claude-mem/
     ```
 
-11. **Plugin Configuration:** By default this plugin is available to all groups and channel types. To restrict access, edit `plugins/claude-mem/plugin.json` and set:
+9. **Plugin Configuration:** By default this plugin is available to all groups and channel types. To restrict access, edit `plugins/claude-mem/plugin.json` and set:
     - `"groups"` to specific group folder names (e.g., `["main"]`) instead of `["*"]`
     - `"channels"` to specific channel types (e.g., `["whatsapp"]`) instead of `["*"]`
 
     Ask the user if they want to restrict access. Most users will keep the defaults.
 
-12. Rebuild and restart:
+10. Rebuild and restart:
     ```bash
     npm run build
     systemctl restart nanoclaw
@@ -173,18 +151,18 @@ systemctl start claude-mem-worker
 ## Troubleshooting
 
 - **Worker not starting:** `journalctl -u claude-mem-worker -f` and check `/root/.claude-mem/logs/`
-- **Bridge not working:** Verify Docker bridge IP: `docker network inspect bridge --format '{{range .IPAM.Config}}{{.Gateway}}{{end}}'`
+- **Container can't reach host:** Verify `--add-host=host.docker.internal:host-gateway` is in `container-runtime.ts` `extraRunArgs()`
 - **Port conflict:** `lsof -i :37777` -- kill orphaned workers first
-- **Services status:** `systemctl status claude-mem-worker claude-mem-bridge`
+- **Service status:** `systemctl status claude-mem-worker`
 
 **Per-group credential overrides:** Not applicable. Claude-mem is a system-wide service shared across all groups.
 
 ## Uninstall
 
-1. Stop the services:
+1. Stop the service:
    ```bash
-   sudo systemctl stop claude-mem-bridge claude-mem-worker
-   sudo systemctl disable claude-mem-bridge claude-mem-worker
+   sudo systemctl stop claude-mem-worker
+   sudo systemctl disable claude-mem-worker
    ```
 
 2. Remove the plugin:
