@@ -26,10 +26,10 @@ If any check fails, tell the user to run `/nanoclaw-setup` first and stop.
 
 ## Install
 
-1. Check existing configuration:
+1. Check existing configuration (credentials may be in global `.env` or any group's `groups/*/.env`):
    ```bash
-   grep "^GOG_KEYRING_PASSWORD=" .env 2>/dev/null && echo "GOOGLE: CONFIGURED" || echo "GOOGLE: NOT SET"
-   grep "^CALDAV_ACCOUNTS=" .env 2>/dev/null && echo "CALDAV: CONFIGURED" || echo "CALDAV: NOT SET"
+   (grep -rq "^GOG_KEYRING_PASSWORD=" .env groups/*/.env 2>/dev/null) && echo "GOOGLE: CONFIGURED" || echo "GOOGLE: NOT SET"
+   (grep -rq "^CALDAV_ACCOUNTS=" .env groups/*/.env 2>/dev/null) && echo "CALDAV: CONFIGURED" || echo "CALDAV: NOT SET"
    ```
    If already configured, ask the user if they want to add another provider or reconfigure.
 
@@ -109,7 +109,7 @@ sed -i '/^CALDAV_ACCOUNTS=/d' .env
 echo 'CALDAV_ACCOUNTS=[{"name":"iCloud","serverUrl":"https://caldav.icloud.com","user":"user@icloud.com","pass":"xxxx-xxxx-xxxx-xxxx"}]' >> .env
 ```
 
-### Step 4: Plugin Configuration
+### Step 4: Group Scoping
 
 Ask the user which groups should have access to Calendar:
 
@@ -126,13 +126,17 @@ If all groups (or the user doesn't care), leave as `"groups": ["*"]`.
 
 Restricting access means only those groups' agents will have calendar tools. Other groups won't see calendar commands or credentials.
 
-Also ask about channel types. If the user wants this plugin available on all channel types (WhatsApp, Discord, etc.), leave `"channels": ["*"]`. To restrict, set `"channels"` to specific types (e.g., `["whatsapp"]`). Most users will want the default.
-
 ### Step 5: Deploy Plugin
 
 Copy plugin files:
 ```bash
-cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/calendar/
+mkdir -p plugins/calendar/container-skills plugins/calendar/cal-cli/src scripts
+cp ${CLAUDE_PLUGIN_ROOT}/files/plugin.json plugins/calendar/
+cp ${CLAUDE_PLUGIN_ROOT}/files/container-skills/SKILL.md plugins/calendar/container-skills/
+cp ${CLAUDE_PLUGIN_ROOT}/files/Dockerfile.partial plugins/calendar/
+cp ${CLAUDE_PLUGIN_ROOT}/files/package.json ${CLAUDE_PLUGIN_ROOT}/files/package-lock.json ${CLAUDE_PLUGIN_ROOT}/files/tsconfig.json plugins/calendar/cal-cli/
+cp ${CLAUDE_PLUGIN_ROOT}/files/src/*.ts plugins/calendar/cal-cli/src/
+cp ${CLAUDE_PLUGIN_ROOT}/files/scripts/gog-reauth.sh scripts/ && chmod +x scripts/gog-reauth.sh
 ```
 
 ### Step 6: Configure Container Mounts
@@ -167,46 +171,55 @@ Tell the user:
 
 ## Refresh Google OAuth Token
 
-Google OAuth tokens expire periodically. When the agent reports `"invalid_grant" "Token has been expired or revoked."`, re-authenticate:
+Google OAuth tokens expire periodically. When the agent reports `"invalid_grant" "Token has been expired or revoked."`, use the helper script:
 
-### On a machine with a browser:
 ```bash
-GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2) gog auth add EMAIL --services=calendar --force-consent
+# Check which accounts need reauth (non-destructive)
+./scripts/gog-reauth.sh --check
+
+# Reauth — auto-detects expired accounts, prompts for selection
+./scripts/gog-reauth.sh
+
+# Reauth all expired accounts in sequence
+./scripts/gog-reauth.sh --all
+
+# Reauth a specific account
+./scripts/gog-reauth.sh user@gmail.com
 ```
 
-### On a headless server (no browser):
-```bash
-GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2) gog auth add EMAIL --manual --services=calendar --force-consent
-```
-This prints an OAuth URL. Open it in any browser, authorize, then copy the `localhost:1` redirect URL from the address bar and paste it back at the prompt.
+The script automatically:
+1. Discovers all `GOG_ACCOUNT` values across `groups/*/.env` and `.env`
+2. Tests each account's OAuth token against the Google Calendar API
+3. Shows which accounts are healthy (✓) and which are expired (✗)
+4. If multiple expired, offers to reauth all or pick specific ones
+5. Uses the `GOG_KEYRING_PASSWORD` from the same env file as the account
+6. Includes gmail scopes if the gmail plugin is installed
+7. Runs `gog auth` via expect (handles the CSRF state matching that breaks with separate invocations)
+8. Prompts for the redirect URL interactively
+9. Syncs credentials to `data/gogcli/` for container access
+10. Verifies each account after reauth
 
-If the process can't accept interactive input (e.g. from Claude Code), use `expect`:
-```bash
-export GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2)
-expect -c '
-set timeout 30
-spawn gog auth add EMAIL --manual --services=calendar --force-consent
-expect -re {state=([^\s&]+)}
-set state $expect_out(1,string)
-expect "Paste redirect URL"
-send "http://localhost:1/?state=$state&code=AUTH_CODE_HERE&scope=email%20https://www.googleapis.com/auth/calendar%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=0&prompt=consent\r"
-expect eof
-'
-```
+### From Claude Code (non-interactive)
 
-### CRITICAL: Sync credentials to container mount
+Since Claude Code can't use `read`, run the script in the background and feed the redirect URL via file:
 
-After re-auth, `gog` writes tokens to `~/.config/gogcli/` but containers mount `data/gogcli/`. You MUST sync:
-```bash
-cp -r ~/.config/gogcli/* data/gogcli/
-chown -R 1000:1000 data/gogcli/
-```
-Without this step, containers will still see the old expired token.
+The approach uses `scripts/gog-reauth.sh`'s expect script but non-interactively:
 
-Verify from the container mount path:
-```bash
-GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2) XDG_CONFIG_HOME=$(pwd)/data gog calendar list --account EMAIL --all
-```
+1. First, discover which account needs reauth. If the agent reported the error, check which group it was for and find the `GOG_ACCOUNT` in that group's `.env`.
+
+2. Write and run the expect script from `scripts/gog-reauth.sh` (the section between `EXPECT_EOF` markers) in the background, passing `$EMAIL`, `$SERVICES`, `$STATE_FILE`, and `$REDIRECT_FILE`.
+
+3. Wait for `$STATE_FILE` to be written (contains the CSRF state token).
+
+4. Show the user the OAuth URL containing the state from `$STATE_FILE`.
+
+5. User authorizes and pastes redirect URL.
+
+6. Write the redirect URL to `$REDIRECT_FILE` — the expect process picks it up and completes auth.
+
+7. Sync: `cp -r ~/.config/gogcli/* data/gogcli/ && chown -R 1000:1000 data/gogcli/`
+
+IMPORTANT: Each `gog auth` invocation generates a unique CSRF state token. The redirect URL from one invocation will NOT work with another — the state must match. This is why the expect approach keeps the same process alive throughout.
 
 ## Troubleshooting
 
