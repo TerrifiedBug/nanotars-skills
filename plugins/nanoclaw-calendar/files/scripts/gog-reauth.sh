@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Re-authenticate gog CLI on a headless server.
-# Usage: ./scripts/gog-reauth.sh [email] [--services calendar,gmail]
-#        ./scripts/gog-reauth.sh --check     # check which accounts need reauth
-#        ./scripts/gog-reauth.sh --all       # reauth all expired accounts
+# Usage: ./plugins/calendar/scripts/gog-reauth.sh [email] [--services calendar,gmail]
+#        ./plugins/calendar/scripts/gog-reauth.sh --check
+#        ./plugins/calendar/scripts/gog-reauth.sh --all
 #
 # Discovers all GOG accounts across group .env files, tests each one,
 # and re-authenticates expired tokens via expect (headless OAuth flow).
 
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../../.."
 
 # --- Account Discovery ---
 

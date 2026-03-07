@@ -130,13 +130,13 @@ Restricting access means only those groups' agents will have calendar tools. Oth
 
 Copy plugin files:
 ```bash
-mkdir -p plugins/calendar/container-skills plugins/calendar/cal-cli/src scripts
+mkdir -p plugins/calendar/container-skills plugins/calendar/cal-cli/src plugins/calendar/scripts
 cp ${CLAUDE_PLUGIN_ROOT}/files/plugin.json plugins/calendar/
 cp ${CLAUDE_PLUGIN_ROOT}/files/container-skills/SKILL.md plugins/calendar/container-skills/
 cp ${CLAUDE_PLUGIN_ROOT}/files/Dockerfile.partial plugins/calendar/
 cp ${CLAUDE_PLUGIN_ROOT}/files/package.json ${CLAUDE_PLUGIN_ROOT}/files/package-lock.json ${CLAUDE_PLUGIN_ROOT}/files/tsconfig.json plugins/calendar/cal-cli/
 cp ${CLAUDE_PLUGIN_ROOT}/files/src/*.ts plugins/calendar/cal-cli/src/
-cp ${CLAUDE_PLUGIN_ROOT}/files/scripts/gog-reauth.sh scripts/ && chmod +x scripts/gog-reauth.sh
+cp ${CLAUDE_PLUGIN_ROOT}/files/scripts/gog-reauth.sh plugins/calendar/scripts/ && chmod +x plugins/calendar/scripts/gog-reauth.sh
 ```
 
 ### Step 6: Configure Container Mounts
@@ -175,16 +175,16 @@ Google OAuth tokens expire periodically. When the agent reports `"invalid_grant"
 
 ```bash
 # Check which accounts need reauth (non-destructive)
-./scripts/gog-reauth.sh --check
+./plugins/calendar/scripts/gog-reauth.sh --check
 
 # Reauth — auto-detects expired accounts, prompts for selection
-./scripts/gog-reauth.sh
+./plugins/calendar/scripts/gog-reauth.sh
 
 # Reauth all expired accounts in sequence
-./scripts/gog-reauth.sh --all
+./plugins/calendar/scripts/gog-reauth.sh --all
 
 # Reauth a specific account
-./scripts/gog-reauth.sh user@gmail.com
+./plugins/calendar/scripts/gog-reauth.sh user@gmail.com
 ```
 
 The script automatically:
@@ -203,11 +203,11 @@ The script automatically:
 
 Since Claude Code can't use `read`, run the script in the background and feed the redirect URL via file:
 
-The approach uses `scripts/gog-reauth.sh`'s expect script but non-interactively:
+The approach uses `plugins/calendar/scripts/gog-reauth.sh`'s expect script but non-interactively:
 
 1. First, discover which account needs reauth. If the agent reported the error, check which group it was for and find the `GOG_ACCOUNT` in that group's `.env`.
 
-2. Write and run the expect script from `scripts/gog-reauth.sh` (the section between `EXPECT_EOF` markers) in the background, passing `$EMAIL`, `$SERVICES`, `$STATE_FILE`, and `$REDIRECT_FILE`.
+2. Write and run the expect script from `plugins/calendar/scripts/gog-reauth.sh` (the section between `EXPECT_EOF` markers) in the background, passing `$EMAIL`, `$SERVICES`, `$STATE_FILE`, and `$REDIRECT_FILE`.
 
 3. Wait for `$STATE_FILE` to be written (contains the CSRF state token).
 
