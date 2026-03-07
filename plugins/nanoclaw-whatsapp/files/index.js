@@ -11,8 +11,8 @@ import makeWASocket, {
   downloadMediaMessage,
   fetchLatestWaWebVersion,
   makeCacheableSignalKeyStore,
-  useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
+import { useSqliteAuthState } from './sqlite-auth-state.js';
 
 const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_OUTGOING_QUEUE = 200;
@@ -61,7 +61,7 @@ class WhatsAppChannel {
     const authDir = path.join(this.config.paths.channelsDir, 'whatsapp', 'auth');
     fs.mkdirSync(authDir, { recursive: true });
 
-    const { state, saveCreds } = await useMultiFileAuthState(authDir);
+    const { state, saveCreds } = await useSqliteAuthState(authDir, this.logger);
 
     if (!this.ffmpegChecked) {
       this.ffmpegChecked = true;
@@ -173,6 +173,7 @@ class WhatsAppChannel {
 
     this.sock.ev.on('messages.upsert', async ({ messages }) => {
       for (const msg of messages) {
+        try {
         if (!msg.message) continue;
         const rawJid = msg.key.remoteJid;
         if (!rawJid || rawJid === 'status@broadcast') continue;
@@ -325,6 +326,12 @@ class WhatsAppChannel {
         if (!msg.key.fromMe) {
           this.sock.readMessages([msg.key]).catch(() => {});
         }
+        } catch (err) {
+          this.logger.error(
+            { err, remoteJid: msg.key?.remoteJid, msgId: msg.key?.id },
+            'Error processing message, skipping',
+          );
+        }
       }
     });
   }
@@ -467,6 +474,17 @@ class WhatsAppChannel {
    * For GIFs (gifPlayback videos), returns the thumbnail as an image instead.
    * @private
    */
+  detectMimeFromBuffer(buffer) {
+    if (!buffer || buffer.length < 12) return null;
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) return { mime: 'image/png', ext: 'png' };
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) return { mime: 'image/jpeg', ext: 'jpg' };
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) return { mime: 'image/gif', ext: 'gif' };
+    if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46
+        && buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) return { mime: 'image/webp', ext: 'webp' };
+    if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) return { mime: 'application/pdf', ext: 'pdf' };
+    return null;
+  }
+
   async downloadMedia(msg, groupFolder) {
     const mediaTypes = [
       { key: 'imageMessage', type: 'image', ext: 'jpg' },
@@ -481,7 +499,18 @@ class WhatsAppChannel {
 
       try {
         const buffer = await downloadMediaMessage(msg, 'buffer', {});
-        const ext = mt.ext || mediaMsg.fileName?.split('.').pop() || 'bin';
+        let ext = mt.ext || mediaMsg.fileName?.split('.').pop() || 'bin';
+
+        // Detect actual MIME from magic bytes — WhatsApp metadata can lie
+        const detected = this.detectMimeFromBuffer(buffer);
+        if (detected && mt.type === 'image') {
+          const declared = mediaMsg.mimetype || `image/${ext}`;
+          if (detected.mime !== declared) {
+            this.logger.warn({ declared, actual: detected.mime, msgId: msg.key.id }, 'MIME mismatch detected via magic bytes');
+            ext = detected.ext;
+          }
+        }
+
         const filename = `${msg.key.id}.${ext}`;
         const mediaDir = path.join(this.config.paths.groupsDir, groupFolder, 'media');
         fs.mkdirSync(mediaDir, { recursive: true });

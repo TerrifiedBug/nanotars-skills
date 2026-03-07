@@ -19,8 +19,8 @@ import makeWASocket, {
   Browsers,
   DisconnectReason,
   makeCacheableSignalKeyStore,
-  useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
+import { useSqliteAuthState } from './sqlite-auth-state.js';
 
 const AUTH_DIR = './data/channels/whatsapp/auth';
 const QR_FILE = './data/channels/whatsapp/qr-data.txt';
@@ -70,7 +70,7 @@ canvas{max-width:90vw;max-height:70vh}h2{margin-bottom:1em}</style></head>
 }
 
 async function connectSocket(phoneNumber) {
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  const { state, saveCreds } = await useSqliteAuthState(AUTH_DIR);
 
   if (state.creds.registered) {
     fs.writeFileSync(STATUS_FILE, 'already_authenticated');
