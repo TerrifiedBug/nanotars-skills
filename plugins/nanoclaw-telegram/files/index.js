@@ -170,7 +170,54 @@ class TelegramChannel {
 
     this.bot.on('message:photo', (ctx) => storeNonText(ctx, '[Photo]'));
     this.bot.on('message:video', (ctx) => storeNonText(ctx, '[Video]'));
-    this.bot.on('message:voice', (ctx) => storeNonText(ctx, '[Voice message]'));
+    this.bot.on('message:voice', async (ctx) => {
+      const chatJid = `tg:${ctx.chat.id}`;
+      const group = this.config.registeredGroups()[chatJid];
+      if (!group) return;
+
+      const timestamp = new Date(ctx.message.date * 1000).toISOString();
+      const senderName = ctx.from?.first_name || ctx.from?.username || ctx.from?.id?.toString() || 'Unknown';
+      const caption = ctx.message.caption ? ` ${ctx.message.caption}` : '';
+
+      let replyContext;
+      const replyMsg = ctx.message.reply_to_message;
+      if (replyMsg) {
+        const replySender = replyMsg.from?.first_name || replyMsg.from?.username || replyMsg.from?.id?.toString() || 'unknown';
+        replyContext = { sender_name: replySender, text: replyMsg.text || replyMsg.caption || null };
+      }
+
+      let mediaHostPath;
+      try {
+        const { createWriteStream } = await import('fs');
+        const { pipeline } = await import('stream/promises');
+        const os = await import('os');
+        const path = await import('path');
+        const file = await ctx.getFile();
+        const url = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const tmpPath = path.join(os.tmpdir(), `tg-voice-${ctx.message.message_id}.ogg`);
+          await pipeline(res.body, createWriteStream(tmpPath));
+          mediaHostPath = tmpPath;
+        }
+      } catch (err) {
+        this.logger.warn({ err: err.message }, 'Failed to download voice message');
+      }
+
+      this.config.onChatMetadata(chatJid, timestamp);
+      this.config.onMessage(chatJid, {
+        id: ctx.message.message_id.toString(),
+        chat_jid: chatJid,
+        sender: ctx.from?.id?.toString() || '',
+        sender_name: senderName,
+        content: `[audio: voice.ogg]${caption}`,
+        timestamp,
+        is_from_me: false,
+        reply_context: replyContext,
+        mediaType: 'audio',
+        mediaHostPath,
+      });
+    });
     this.bot.on('message:audio', (ctx) => storeNonText(ctx, '[Audio]'));
     this.bot.on('message:document', (ctx) => {
       const name = ctx.message.document?.file_name || 'file';
