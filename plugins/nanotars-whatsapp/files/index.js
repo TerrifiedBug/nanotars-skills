@@ -2,6 +2,7 @@ import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
+import { createRequire } from 'module';
 
 const execFileAsync = promisify(execFile);
 
@@ -13,6 +14,24 @@ import makeWASocket, {
   makeCacheableSignalKeyStore,
 } from '@whiskeysockets/baileys';
 import { useSqliteAuthState } from './sqlite-auth-state.js';
+
+// Patch Baileys v6 getPlatformId so pairing codes work (mirrors qwibitai/nanoclaw v2 src/channels/whatsapp.ts:51).
+// Baileys v6 bug: getPlatformId sends charCode (49) instead of enum value (1).
+// Fixed in 7.x but not backported. Without this, pairing codes fail with
+// "couldn't link device" because WhatsApp receives an invalid platform ID.
+// createRequire is needed because proto is not exposed as a named ESM export.
+const _require = createRequire(import.meta.url);
+const { proto } = _require('@whiskeysockets/baileys');
+try {
+  const _generics = _require('@whiskeysockets/baileys/lib/Utils/generics');
+  _generics.getPlatformId = (browser) => {
+    const platformType = proto.DeviceProps.PlatformType[browser.toUpperCase()];
+    return platformType ? platformType.toString() : '1';
+  };
+} catch {
+  // CJS require failed (Node version mismatch?) — pairing codes may not work
+  // but QR auth will still function fine.
+}
 
 const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_OUTGOING_QUEUE = 200;
