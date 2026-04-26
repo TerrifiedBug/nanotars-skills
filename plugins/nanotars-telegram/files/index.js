@@ -4,6 +4,25 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Sentence/paragraph-aware splitter (ported from nanoclaw v2's splitForLimit).
+// Prefers paragraph (\n\n), then line (\n), then word (space) boundaries; only
+// falls back to a hard slice when none is found within the limit.
+function splitForLimit(text, limit) {
+  if (text.length <= limit) return [text];
+  const chunks = [];
+  let remaining = text;
+  while (remaining.length > limit) {
+    let cut = remaining.lastIndexOf('\n\n', limit);
+    if (cut <= 0) cut = remaining.lastIndexOf('\n', limit);
+    if (cut <= 0) cut = remaining.lastIndexOf(' ', limit);
+    if (cut <= 0) cut = limit;
+    chunks.push(remaining.slice(0, cut).trimEnd());
+    remaining = remaining.slice(cut).trimStart();
+  }
+  if (remaining.length > 0) chunks.push(remaining);
+  return chunks;
+}
+
 class TelegramChannel {
   name = 'telegram';
 
@@ -234,13 +253,10 @@ class TelegramChannel {
       // Telegram has a 4096 character limit per message — split if needed
       const MAX_LENGTH = 4096;
       const replyParams = replyTo ? { reply_parameters: { message_id: parseInt(replyTo, 10) } } : {};
-      if (text.length <= MAX_LENGTH) {
-        await this.bot.api.sendMessage(numericId, text, replyParams);
-      } else {
-        for (let i = 0; i < text.length; i += MAX_LENGTH) {
-          const params = i === 0 ? replyParams : {};
-          await this.bot.api.sendMessage(numericId, text.slice(i, i + MAX_LENGTH), params);
-        }
+      const chunks = splitForLimit(text, MAX_LENGTH);
+      for (let i = 0; i < chunks.length; i++) {
+        const params = i === 0 ? replyParams : {};
+        await this.bot.api.sendMessage(numericId, chunks[i], params);
       }
       this.logger.info({ jid, length: text.length }, 'Telegram message sent');
     } catch (err) {
