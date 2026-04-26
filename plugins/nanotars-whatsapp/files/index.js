@@ -37,6 +37,53 @@ const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_OUTGOING_QUEUE = 200;
 const SENT_MESSAGE_CACHE_MAX = 256;
 
+// --- Markdown → WhatsApp formatting ---
+// Mirrors qwibitai/nanoclaw v2 src/channels/whatsapp.ts:79-126.
+
+/** Split text into code-block-protected and unprotected regions. */
+function splitProtectedRegions(text) {
+  const segments = [];
+  const codeBlockRegex = /```[\s\S]*?```|`[^`\n]+`/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ content: text.slice(lastIndex, match.index), isProtected: false });
+    }
+    segments.push({ content: match[0], isProtected: true });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    segments.push({ content: text.slice(lastIndex), isProtected: false });
+  }
+  return segments;
+}
+
+/** Apply WhatsApp-native formatting to an unprotected text segment. */
+function transformForWhatsApp(text) {
+  // Order matters: italic before bold to avoid **bold** → *bold* → _bold_
+  // 1. Italic: *text* (not **) → _text_
+  text = text.replace(/(?<!\*)\*(?=[^\s*])([^*\n]+?)(?<=[^\s*])\*(?!\*)/g, '_$1_');
+  // 2. Bold: **text** → *text*
+  text = text.replace(/\*\*(?=[^\s*])([^*]+?)(?<=[^\s*])\*\*/g, '*$1*');
+  // 3. Headings: ## Title → *Title*
+  text = text.replace(/^#{1,6}\s+(.+)$/gm, '*$1*');
+  // 4. Links: [text](url) → text (url)
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
+  // 5. Horizontal rules: --- / *** / ___ → stripped
+  text = text.replace(/^(-{3,}|\*{3,}|_{3,})$/gm, '');
+  return text;
+}
+
+/** Convert standard markdown to WhatsApp-native formatting, preserving code fences. */
+function formatWhatsApp(text) {
+  if (!text) return text;
+  const segments = splitProtectedRegions(text);
+  return segments
+    .map(({ content, isProtected }) => (isProtected ? content : transformForWhatsApp(content)))
+    .join('');
+}
+
 class WhatsAppChannel {
   name = 'whatsapp';
 
@@ -406,10 +453,16 @@ class WhatsAppChannel {
   }
 
   async sendMessage(jid, text, sender, replyTo) {
+    // Convert standard markdown to WhatsApp-native formatting (bold/italic
+    // syntax, headings, links). Code fences are preserved verbatim. Run
+    // before the sender/assistant prefix so the prefix's own asterisks
+    // aren't fed back through the regex.
+    const formatted = formatWhatsApp(text);
+
     // If a subagent identity is specified, prefix with its name in bold
     const withSender = sender && sender !== this.config.assistantName
-      ? `*${sender}*\n━━━━━━━━━━━━━━\n${text}`
-      : text;
+      ? `*${sender}*\n━━━━━━━━━━━━━━\n${formatted}`
+      : formatted;
 
     // Prefix bot messages with assistant name so users know who's speaking.
     // On a shared number, prefix is also needed in DMs (including self-chat)
