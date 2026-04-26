@@ -156,7 +156,7 @@ cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/gmail/
 
 ```bash
 ./container/build.sh && npm run build
-systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanoclaw 2>/dev/null || echo "Restart the NanoClaw service manually"
+systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanotars 2>/dev/null || echo "Restart the NanoClaw service manually"
 ```
 
 ## Verify

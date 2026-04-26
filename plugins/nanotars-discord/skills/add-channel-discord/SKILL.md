@@ -75,7 +75,7 @@ Wait for the user to provide the bot token.
 5. Rebuild and restart:
    ```bash
    npm run build
-   systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanoclaw 2>/dev/null
+   systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanotars 2>/dev/null
    ```
 
 6. Verify the bot connected:
@@ -102,7 +102,7 @@ The easiest way to get a channel ID is dynamic discovery:
 
 4. Restart to pick up the registration:
    ```bash
-   systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanoclaw 2>/dev/null
+   systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanotars 2>/dev/null
    ```
 
 ## Verify
