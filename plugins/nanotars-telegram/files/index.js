@@ -150,6 +150,73 @@ class TelegramChannel {
       // Skip commands
       if (ctx.message.text.startsWith('/')) return;
 
+      // Cross-channel pairing-codes intercept (host primitive — see
+      // nanotars src/pending-codes.ts and the /pair-telegram admin
+      // command). When the inbound text is exactly 4 digits (or
+      // `@<botname> 1234` for groups with privacy ON), try to consume
+      // the code BEFORE delivering to the agent. On match, the chat
+      // becomes claimed — we send a confirmation and short-circuit.
+      // Mirrors v2 src/channels/telegram.ts:212-295.
+      if (typeof this.config.consumePendingCode === 'function') {
+        const rawText = ctx.message.text;
+        const botUsername = ctx.me?.username;
+        let candidate = rawText.trim();
+        if (botUsername) {
+          const mentionRe = new RegExp(
+            '^@' + escapeRegex(botUsername) + '\\b\\s*',
+            'i',
+          );
+          candidate = candidate.replace(mentionRe, '').trim();
+        }
+        if (/^\d{4}$/.test(candidate)) {
+          const platformId = `tg:${ctx.chat.id}`;
+          const isGroup = ctx.chat.type !== 'private';
+          const chatNameForPair =
+            isGroup
+              ? ctx.chat.title || platformId
+              : ctx.from?.first_name || ctx.from?.username || platformId;
+          const senderForPair =
+            ctx.from?.username || ctx.from?.first_name || ctx.from?.id?.toString() || null;
+          try {
+            const result = await this.config.consumePendingCode({
+              code: candidate,
+              channel: 'telegram',
+              sender: senderForPair,
+              platformId,
+              isGroup,
+              name: chatNameForPair,
+              candidate: rawText,
+            });
+            if (result && result.matched) {
+              try {
+                await this.bot.api.sendMessage(
+                  ctx.chat.id,
+                  `✓ Pairing success — this chat is now registered (intent: ${
+                    typeof result.intent === 'string' ? result.intent : JSON.stringify(result.intent)
+                  }).`,
+                );
+              } catch (err) {
+                this.logger.warn(
+                  { err: err.message, chatId: ctx.chat.id },
+                  'Failed to send pairing confirmation',
+                );
+              }
+              this.logger.info(
+                { platformId, intent: result.intent },
+                'Telegram pairing code consumed',
+              );
+              return; // short-circuit — do NOT deliver to the agent
+            }
+          } catch (err) {
+            // Fail open: a pairing primitive bug must not break normal traffic.
+            this.logger.error(
+              { err: err.message, candidate },
+              'Pairing intercept threw; passing message through',
+            );
+          }
+        }
+      }
+
       const chatJid = `tg:${ctx.chat.id}`;
       let content = ctx.message.text;
       const timestamp = new Date(ctx.message.date * 1000).toISOString();
