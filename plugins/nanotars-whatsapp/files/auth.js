@@ -43,24 +43,135 @@ function askQuestion(prompt) {
 }
 
 let qrServer;
+// Pending long-poll responses, drained whenever the QR or auth state changes.
+// Mirrors qwibitai/nanoclaw v2 setup/whatsapp-auth.ts long-poll pattern so the
+// browser updates without a page reload when the QR rotates.
+const pendingPolls = [];
+
+function readQR() {
+  try {
+    return fs.existsSync(QR_FILE) ? fs.readFileSync(QR_FILE, 'utf8') : '';
+  } catch {
+    return '';
+  }
+}
+
+function readStatus() {
+  try {
+    return fs.existsSync(STATUS_FILE) ? fs.readFileSync(STATUS_FILE, 'utf8') : '';
+  } catch {
+    return '';
+  }
+}
+
+function notifyQRWatchers() {
+  const qr = readQR();
+  const status = readStatus();
+  const authed = status === 'authenticated' || status === 'already_authenticated';
+  const payload = JSON.stringify({ qr, authenticated: authed });
+  while (pendingPolls.length > 0) {
+    const res = pendingPolls.shift();
+    try {
+      if (!res.writableEnded) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(payload);
+      }
+    } catch {
+      /* client gone */
+    }
+  }
+}
+
+function renderQRPage(initialQR) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>WhatsApp QR</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1/build/qrcode.min.js"></script>
+<style>body{display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#111;flex-direction:column;color:#fff;font-family:sans-serif}
+canvas{max-width:90vw;max-height:70vh}h2{margin-bottom:1em}.hint{margin-top:1em;opacity:0.6}</style></head>
+<body><h2>Scan with WhatsApp</h2><canvas id="qr"></canvas>
+<p class="hint">Settings → Linked Devices → Link a Device</p>
+<script>
+let currentQR = ${JSON.stringify(initialQR)};
+function render(qr) {
+  if (!qr) return;
+  QRCode.toCanvas(document.getElementById('qr'), qr, { width: 400, margin: 2 });
+}
+render(currentQR);
+async function poll() {
+  try {
+    const r = await fetch('/qr-status?since=' + encodeURIComponent(currentQR), { cache: 'no-store' });
+    if (!r.ok) { setTimeout(poll, 2000); return; }
+    const data = await r.json();
+    if (data.authenticated) { window.location.href = '/authenticated'; return; }
+    if (data.qr && data.qr !== currentQR) { currentQR = data.qr; render(currentQR); }
+    poll();
+  } catch (e) {
+    setTimeout(poll, 2000);
+  }
+}
+poll();
+</script>
+</body></html>`;
+}
+
+function renderAuthenticatedPage() {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>WhatsApp Connected</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#111;flex-direction:column;color:#fff;font-family:sans-serif}
+.check{font-size:64px;color:#27ae60;margin-bottom:16px}h2{margin:0 0 8px}p{opacity:0.6}</style></head>
+<body><div class="check">&#10003;</div><h2>Connected to WhatsApp</h2><p>You can close this tab.</p>
+</body></html>`;
+}
 
 function startQRServer(qrData) {
   if (qrServer) return;
 
   const port = parseInt(process.env.QR_PORT || '8899', 10);
-  qrServer = http.createServer((_req, res) => {
-    const currentQR = fs.existsSync(QR_FILE) ? fs.readFileSync(QR_FILE, 'utf8') : qrData;
-    // Simple SVG QR using an inline library approach — render as HTML with embedded QR
+  qrServer = http.createServer((req, res) => {
+    const url = req.url || '/';
+
+    if (url.startsWith('/qr-status')) {
+      // Long-poll: hold the request until QR rotates, status changes, or
+      // 25s timeout elapses. The client passes ?since=<currentQR> so we can
+      // return immediately if it's already stale.
+      const sinceMatch = url.match(/[?&]since=([^&]*)/);
+      const since = sinceMatch ? decodeURIComponent(sinceMatch[1]) : '';
+      const currentQR = readQR();
+      const status = readStatus();
+      const authed = status === 'authenticated' || status === 'already_authenticated';
+      if (authed || (currentQR && currentQR !== since)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ qr: currentQR, authenticated: authed }));
+        return;
+      }
+      pendingPolls.push(res);
+      const timer = setTimeout(() => {
+        const idx = pendingPolls.indexOf(res);
+        if (idx >= 0) pendingPolls.splice(idx, 1);
+        if (!res.writableEnded) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ qr: currentQR, authenticated: false }));
+        }
+      }, 25000);
+      req.on('close', () => {
+        clearTimeout(timer);
+        const idx = pendingPolls.indexOf(res);
+        if (idx >= 0) pendingPolls.splice(idx, 1);
+      });
+      return;
+    }
+
+    if (url.startsWith('/authenticated')) {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(renderAuthenticatedPage());
+      return;
+    }
+
+    // Default route: serve the QR page with the latest QR baked in. The
+    // embedded JS long-polls /qr-status to swap in fresh QRs without reload.
+    const currentQR = readQR() || qrData;
     res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>WhatsApp QR</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1/build/qrcode.min.js"></script>
-<style>body{display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#111;flex-direction:column;color:#fff;font-family:sans-serif}
-canvas{max-width:90vw;max-height:70vh}h2{margin-bottom:1em}</style></head>
-<body><h2>Scan with WhatsApp</h2><canvas id="qr"></canvas>
-<p style="margin-top:1em;opacity:0.6">Settings → Linked Devices → Link a Device</p>
-<script>QRCode.toCanvas(document.getElementById('qr'),${JSON.stringify(currentQR)},{width:400,margin:2})</script>
-</body></html>`);
+    res.end(renderQRPage(currentQR));
   });
 
   qrServer.listen(port, '0.0.0.0', () => {
@@ -111,6 +222,7 @@ async function connectSocket(phoneNumber) {
 
     if (qr) {
       fs.writeFileSync(QR_FILE, qr);
+      notifyQRWatchers();
 
       if (serveQR) {
         startQRServer(qr);
@@ -147,11 +259,16 @@ async function connectSocket(phoneNumber) {
     if (connection === 'open') {
       fs.writeFileSync(STATUS_FILE, 'authenticated');
       try { fs.unlinkSync(QR_FILE); } catch {}
-      if (qrServer) { qrServer.close(); qrServer = null; }
+      // Drain pending long-polls so any open browser tab redirects to
+      // /authenticated. Defer server close so the redirect target can load.
+      notifyQRWatchers();
       console.log('\n✓ Successfully authenticated with WhatsApp!');
       console.log('  Credentials saved to data/channels/whatsapp/auth/');
       console.log('  You can now start the NanoClaw service.\n');
-      setTimeout(() => process.exit(0), 1000);
+      setTimeout(() => {
+        if (qrServer) { qrServer.close(); qrServer = null; }
+        process.exit(0);
+      }, 3000);
     }
   });
 
