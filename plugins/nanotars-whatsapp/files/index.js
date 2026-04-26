@@ -151,8 +151,7 @@ class WhatsAppChannel {
           const phoneUser = this.sock.user.id.split(':')[0];
           const lidUser = this.sock.user.lid?.split(':')[0];
           if (lidUser && phoneUser) {
-            this.lidToPhoneMap[lidUser] = `${phoneUser}@s.whatsapp.net`;
-            this.logger.debug({ lidUser, phoneUser }, 'LID to phone mapping set');
+            this.setLidPhoneMapping(lidUser, `${phoneUser}@s.whatsapp.net`);
           }
         }
 
@@ -189,6 +188,16 @@ class WhatsAppChannel {
     });
 
     this.sock.ev.on('creds.update', saveCreds);
+
+    // Listen for phone-number share events so we can populate the LID→phone
+    // cache as soon as a contact shares their number — mirrors qwibitai/nanoclaw
+    // v2 src/channels/whatsapp.ts:481.
+    this.sock.ev.on('chats.phoneNumberShare', ({ lid, jid }) => {
+      const lidUser = lid?.split('@')[0]?.split(':')[0];
+      if (lidUser && jid) {
+        this.setLidPhoneMapping(lidUser, jid);
+      }
+    });
 
     this.sock.ev.on('messages.upsert', async ({ messages }) => {
       for (const msg of messages) {
@@ -647,6 +656,19 @@ class WhatsAppChannel {
     }));
   }
 
+  /**
+   * Update the LID→phone mapping. Centralised so all writes go through one
+   * function — keeps the cache consistent with any side-effects (e.g. group
+   * metadata invalidation in the upstream adapter).
+   * @private
+   */
+  setLidPhoneMapping(lidUser, phoneJid) {
+    if (!lidUser || !phoneJid) return;
+    if (this.lidToPhoneMap[lidUser] === phoneJid) return;
+    this.lidToPhoneMap[lidUser] = phoneJid;
+    this.logger.debug({ lidUser, phoneJid }, 'LID→phone mapping updated');
+  }
+
   /** @private */
   async translateJid(jid) {
     if (!jid.endsWith('@lid')) return jid;
@@ -664,7 +686,7 @@ class WhatsAppChannel {
       const pn = await this.sock.signalRepository?.lidMapping?.getPNForLID(jid);
       if (pn) {
         const phoneJid = `${pn.split('@')[0].split(':')[0]}@s.whatsapp.net`;
-        this.lidToPhoneMap[lidUser] = phoneJid;
+        this.setLidPhoneMapping(lidUser, phoneJid);
         this.logger.info({ lidJid: jid, phoneJid }, 'Translated LID to phone JID (signalRepository)');
         return phoneJid;
       }
