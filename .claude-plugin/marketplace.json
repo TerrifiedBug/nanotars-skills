@@ -142,13 +142,6 @@
       "category": "channels"
     },
     {
-      "name": "nanotars-slack-formatting",
-      "source": "./plugins/nanotars-slack-formatting",
-      "description": "Add Slack mrkdwn formatting guidance to Nanotars agents. Container skill that teaches agents to use Slack's mrkdwn syntax (*bold*, <url|text>, • bullets) instead of standard Markdown when responding in Slack channels. Triggers on \"add slack formatting\", \"slack mrkdwn\", \"format for slack\".",
-      "version": "1.0.0",
-      "category": "channels"
-    },
-    {
       "name": "nanotars-stocks",
       "source": "./plugins/nanotars-stocks",
       "description": "Add stock price and financial data lookups via Yahoo Finance. Triggers on stock price questions, ticker lookups, market data requests.",

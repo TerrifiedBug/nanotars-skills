@@ -18,8 +18,7 @@ Or browse all skills: run `/plugin` and go to the **Discover** tab.
 | Plugin | Description |
 |--------|-------------|
 | `nanotars-discord` | Discord bot channel plugin |
-| `nanotars-slack` | Slack channel via Socket Mode (no public URL needed) |
-| `nanotars-slack-formatting` | Container skill teaching agents Slack mrkdwn syntax (drop-in, no setup) |
+| `nanotars-slack` | Slack channel via Socket Mode (no public URL needed; bundles mrkdwn formatting guidance for agents) |
 | `nanotars-telegram` | Telegram bot channel plugin |
 | `nanotars-whatsapp` | WhatsApp channel via Baileys with QR auth |
 

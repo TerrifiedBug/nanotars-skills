@@ -1,9 +1,0 @@
-{
-  "name": "slack-formatting",
-  "description": "Slack mrkdwn formatting guidance for agent containers",
-  "containerEnvVars": [],
-  "hooks": [],
-  "version": "1.0.0",
-  "channels": ["slack"],
-  "groups": ["*"]
-}

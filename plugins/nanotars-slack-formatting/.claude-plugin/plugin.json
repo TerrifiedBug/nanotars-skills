@@ -1,5 +1,0 @@
-{
-  "name": "nanotars-slack-formatting",
-  "version": "1.0.0",
-  "description": "Add Slack mrkdwn formatting guidance to Nanotars agents. Container skill that teaches agents to use Slack's mrkdwn syntax (*bold*, <url|text>, • bullets) instead of standard Markdown when responding in Slack channels. Triggers on \"add slack formatting\", \"slack mrkdwn\", \"format for slack\"."
-}
