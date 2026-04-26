@@ -188,23 +188,53 @@ class TelegramChannel {
               candidate: rawText,
             });
             if (result && result.matched) {
+              // The host primitive now performs entity-model registration
+              // on match (host commit c844d39). When it succeeds, the
+              // chat is wired and the next inbound message will route to
+              // the agent. When it fails (e.g. no main agent group has
+              // been created yet, or the targeted agent_group_id is
+              // unknown), `registered` is null and `registration_error`
+              // carries a short human-readable reason so we can tell
+              // the operator instead of pretending pairing worked.
+              const registered = result.registered;
+              const registrationError = result.registration_error;
+              let confirmationText;
+              if (registered) {
+                const intentLabel =
+                  typeof result.intent === 'string'
+                    ? result.intent
+                    : JSON.stringify(result.intent);
+                confirmationText = `✓ Pairing success — this chat is now registered (intent: ${intentLabel}).`;
+              } else {
+                const reason = registrationError || 'unknown registration error';
+                confirmationText =
+                  `Pairing matched but registration failed: ${reason}. ` +
+                  `Contact an admin — the chat will not receive agent replies until this is resolved.`;
+              }
               try {
-                await this.bot.api.sendMessage(
-                  ctx.chat.id,
-                  `✓ Pairing success — this chat is now registered (intent: ${
-                    typeof result.intent === 'string' ? result.intent : JSON.stringify(result.intent)
-                  }).`,
-                );
+                await this.bot.api.sendMessage(ctx.chat.id, confirmationText);
               } catch (err) {
                 this.logger.warn(
                   { err: err.message, chatId: ctx.chat.id },
                   'Failed to send pairing confirmation',
                 );
               }
-              this.logger.info(
-                { platformId, intent: result.intent },
-                'Telegram pairing code consumed',
-              );
+              if (registered) {
+                this.logger.info(
+                  {
+                    platformId,
+                    intent: result.intent,
+                    agent_group_id: registered.agent_group_id,
+                    messaging_group_id: registered.messaging_group_id,
+                  },
+                  'Telegram pairing code consumed and chat registered',
+                );
+              } else {
+                this.logger.warn(
+                  { platformId, intent: result.intent, registrationError },
+                  'Telegram pairing code consumed but registration failed',
+                );
+              }
               return; // short-circuit — do NOT deliver to the agent
             }
           } catch (err) {
