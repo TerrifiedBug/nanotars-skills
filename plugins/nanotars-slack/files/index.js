@@ -8,6 +8,25 @@ const { App } = bolt;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const MAX_MSG_LENGTH = 40000; // Slack API limit
 
+// Sentence/paragraph-aware splitter (ported from nanoclaw v2's splitForLimit).
+// Prefers paragraph (\n\n), then line (\n), then word (space) boundaries; only
+// falls back to a hard slice when none is found within the limit.
+function splitForLimit(text, limit) {
+  if (text.length <= limit) return [text];
+  const chunks = [];
+  let remaining = text;
+  while (remaining.length > limit) {
+    let cut = remaining.lastIndexOf('\n\n', limit);
+    if (cut <= 0) cut = remaining.lastIndexOf('\n', limit);
+    if (cut <= 0) cut = remaining.lastIndexOf(' ', limit);
+    if (cut <= 0) cut = limit;
+    chunks.push(remaining.slice(0, cut).trimEnd());
+    remaining = remaining.slice(cut).trimStart();
+  }
+  if (remaining.length > 0) chunks.push(remaining);
+  return chunks;
+}
+
 // Unicode emoji → Slack reaction short names
 const EMOJI_TO_SLACK = {
   '\u{1F44D}': 'thumbsup', '\u{1F44E}': 'thumbsdown', '\u{2764}\u{FE0F}': 'heart',
@@ -322,12 +341,13 @@ class SlackChannel {
     }
 
     try {
-      if (text.length <= MAX_MSG_LENGTH) {
+      const chunks = splitForLimit(text, MAX_MSG_LENGTH);
+      if (chunks.length === 1) {
         await this.app.client.chat.postMessage(opts);
       } else {
         // Split oversized messages
-        for (let i = 0; i < text.length; i += MAX_MSG_LENGTH) {
-          const chunk = { ...opts, text: text.slice(i, i + MAX_MSG_LENGTH) };
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = { ...opts, text: chunks[i] };
           if (i > 0) delete chunk.thread_ts;
           await this.app.client.chat.postMessage(chunk);
         }
