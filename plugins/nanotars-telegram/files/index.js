@@ -54,6 +54,30 @@ function clipCaption(caption) {
     : caption;
 }
 
+// Retry a one-shot operation that can fail on transient network errors at
+// cold-start (DNS hiccups, brief upstream outages — common when the host
+// service launches before the network is fully up). Exponential backoff
+// capped at 5 attempts; after that we surface the error so the service
+// crashes loudly instead of hanging silently.
+async function withRetry(fn, label, logger, maxAttempts = 5) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt === maxAttempts) break;
+      const delay = Math.min(16000, 1000 * 2 ** (attempt - 1));
+      logger.warn(
+        { label, attempt, delayMs: delay, err: err.message || err },
+        'Telegram setup failed, retrying',
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
+
 // Sentence/paragraph-aware splitter (ported from nanoclaw v2's splitForLimit).
 // Prefers paragraph (\n\n), then line (\n), then word (space) boundaries; only
 // falls back to a hard slice when none is found within the limit.
@@ -271,18 +295,34 @@ class TelegramChannel {
       }
     }
 
-    // Start polling — returns a Promise that resolves when started
-    return new Promise((resolve) => {
-      this.bot.start({
-        onStart: (botInfo) => {
-          this.logger.info(
-            { username: botInfo.username, id: botInfo.id },
-            'Telegram bot connected',
-          );
-          resolve();
-        },
-      });
-    });
+    // Start polling, with exponential-backoff retry around the cold-start
+    // getMe call. Transient DNS / API hiccups during launchd boot would
+    // otherwise crash the service immediately — 5 attempts (1s/2s/4s/8s/16s)
+    // gives the network ~30s to settle before we surface the error.
+    return withRetry(
+      () =>
+        new Promise((resolve, reject) => {
+          let started = false;
+          this.bot
+            .start({
+              onStart: (botInfo) => {
+                started = true;
+                this.logger.info(
+                  { username: botInfo.username, id: botInfo.id },
+                  'Telegram bot connected',
+                );
+                resolve();
+              },
+            })
+            .catch((err) => {
+              // bot.start() also resolves/rejects when polling stops; only
+              // bubble up cold-start failures (where onStart never fired).
+              if (!started) reject(err);
+            });
+        }),
+      'bot.start',
+      this.logger,
+    );
   }
 
   async sendMessage(jid, text, sender, replyTo) {
