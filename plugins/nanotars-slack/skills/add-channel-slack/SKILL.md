@@ -140,7 +140,7 @@ The bot responds when:
 
 1. Verify both `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN` are set in `.env`
 2. Confirm Socket Mode is enabled in app settings
-3. Check logs: `tail -20 logs/nanoclaw.log | grep -i slack`
+3. Check logs: `tail -20 logs/nanotars.log | grep -i slack`
 
 ### Bot not receiving messages
 

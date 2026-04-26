@@ -161,7 +161,7 @@ EOF
 Rebuild and restart:
 ```bash
 ./container/build.sh
-systemctl restart nanoclaw 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanoclaw 2>/dev/null || echo "Restart the NanoClaw service manually"
+systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanoclaw 2>/dev/null || echo "Restart the NanoClaw service manually"
 ```
 
 ## Verify
@@ -253,7 +253,7 @@ If this plugin is already installed and you want **different credentials for a s
 
 5. Restart NanoClaw:
    ```bash
-   sudo systemctl restart nanoclaw
+   sudo systemctl --user restart nanotars
    ```
 
 ## Remove

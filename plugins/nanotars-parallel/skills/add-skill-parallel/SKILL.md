@@ -79,7 +79,7 @@ Ask the user if they want to restrict access. Most users will keep the defaults.
 
 ```bash
 npm run build
-systemctl restart nanoclaw  # or launchctl on macOS
+systemctl --user restart nanotars  # or launchctl on macOS
 ```
 
 ## Verify

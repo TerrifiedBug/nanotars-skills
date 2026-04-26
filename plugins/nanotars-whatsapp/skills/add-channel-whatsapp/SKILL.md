@@ -52,7 +52,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 
    Then restart the service:
    ```bash
-   systemctl restart nanoclaw 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanoclaw 2>/dev/null || echo "Restart the NanoClaw service manually"
+   systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanoclaw 2>/dev/null || echo "Restart the NanoClaw service manually"
    ```
 
 ## Auth
@@ -249,7 +249,7 @@ node -e "const c = JSON.parse(require('fs').readFileSync('data/channels/whatsapp
 
 ## Verify
 
-- Check logs: `tail -20 logs/nanoclaw.log | grep -i whatsapp`
+- Check logs: `tail -20 logs/nanotars.log | grep -i whatsapp`
 - Send a test message in the registered WhatsApp chat and confirm the agent responds
 
 ## Troubleshooting

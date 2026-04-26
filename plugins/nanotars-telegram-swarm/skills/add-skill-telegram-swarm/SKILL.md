@@ -127,7 +127,7 @@ Restart NanoClaw so the plugin picks up the new pool tokens.
 Check logs for pool initialization:
 
 ```bash
-grep -i "pool bot" logs/nanoclaw.log
+grep -i "pool bot" logs/nanotars.log
 ```
 
 You should see "Pool bot initialized" for each token and "Telegram bot pool ready".
@@ -146,7 +146,7 @@ You should see "Pool bot initialized" for each token and "Telegram bot pool read
 ### Pool bots not sending messages
 
 1. Verify tokens: `curl -s "https://api.telegram.org/botTOKEN/getMe"`
-2. Check pool initialized: `grep "Pool bot" logs/nanoclaw.log`
+2. Check pool initialized: `grep "Pool bot" logs/nanotars.log`
 3. Ensure all pool bots are members of the Telegram group
 4. Check Group Privacy is disabled for each pool bot
 

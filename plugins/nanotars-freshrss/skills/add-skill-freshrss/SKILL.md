@@ -110,7 +110,7 @@ If the test fails:
 
 ```bash
 npm run build
-systemctl restart nanoclaw  # or launchctl on macOS
+systemctl --user restart nanotars  # or launchctl on macOS
 ```
 
 ## Verify
@@ -140,7 +140,7 @@ If this plugin is already installed and you want **different credentials for a s
 
 5. Restart NanoClaw:
    ```bash
-   sudo systemctl restart nanoclaw
+   sudo systemctl --user restart nanotars
    ```
 
 ## Remove

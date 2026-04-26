@@ -52,7 +52,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 5. Rebuild and restart:
    ```bash
    npm run build
-   systemctl restart nanoclaw  # or launchctl on macOS
+   systemctl --user restart nanotars  # or launchctl on macOS
    ```
 
 ## Verify
@@ -124,7 +124,7 @@ If this plugin is already installed and you want **different credentials for a s
 
 5. Restart NanoClaw:
    ```bash
-   sudo systemctl restart nanoclaw
+   sudo systemctl --user restart nanotars
    ```
 
 ## Remove

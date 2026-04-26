@@ -143,7 +143,7 @@ For the main group, also mention: `POST /webhook` (no path suffix) routes to mai
 ### 5c. Restart
 
 ```bash
-npm run build && systemctl restart nanoclaw  # or launchctl on macOS
+npm run build && systemctl --user restart nanotars  # or launchctl on macOS
 ```
 
 The routes file is also hot-reloaded — after the first restart, adding new routes takes effect without restarting.

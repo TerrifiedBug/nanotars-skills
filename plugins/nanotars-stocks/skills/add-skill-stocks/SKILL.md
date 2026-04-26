@@ -45,7 +45,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 4. Rebuild and restart:
    ```bash
    npm run build
-   sudo systemctl restart nanoclaw  # or: launchctl unload ~/Library/LaunchAgents/com.nanoclaw.plist && launchctl load ~/Library/LaunchAgents/com.nanoclaw.plist
+   sudo systemctl --user restart nanotars  # or: launchctl unload ~/Library/LaunchAgents/com.nanotars.plist && launchctl load ~/Library/LaunchAgents/com.nanotars.plist
    ```
 
 ## Verify
@@ -53,7 +53,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 Check that the plugin loaded:
 
 ```bash
-grep -i "stocks" logs/nanoclaw.log | tail -5
+grep -i "stocks" logs/nanotars.log | tail -5
 ```
 
 Test from a chat by asking: "What's the current price of AAPL?"

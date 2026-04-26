@@ -75,12 +75,12 @@ Wait for the user to provide the bot token.
 5. Rebuild and restart:
    ```bash
    npm run build
-   systemctl restart nanoclaw 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanoclaw 2>/dev/null
+   systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanoclaw 2>/dev/null
    ```
 
 6. Verify the bot connected:
    ```bash
-   sleep 3 && grep -i 'discord.*connected' logs/nanoclaw.log | tail -1
+   sleep 3 && grep -i 'discord.*connected' logs/nanotars.log | tail -1
    ```
 
 ## Register a Chat
@@ -102,12 +102,12 @@ The easiest way to get a channel ID is dynamic discovery:
 
 4. Restart to pick up the registration:
    ```bash
-   systemctl restart nanoclaw 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanoclaw 2>/dev/null
+   systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanoclaw 2>/dev/null
    ```
 
 ## Verify
 
-- Check logs: `tail -20 logs/nanoclaw.log | grep -i discord`
+- Check logs: `tail -20 logs/nanotars.log | grep -i discord`
 - Send a test message and confirm the agent responds
 
 ## Troubleshooting

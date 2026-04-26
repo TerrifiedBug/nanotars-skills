@@ -46,7 +46,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 4. Rebuild and restart:
    ```bash
    npm run build
-   sudo systemctl restart nanoclaw
+   sudo systemctl --user restart nanotars
    ```
 
 ## Verify
