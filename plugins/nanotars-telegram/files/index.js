@@ -1,4 +1,5 @@
 import { Bot, InputFile } from 'grammy';
+import { sanitizeTelegramLegacyMarkdown } from './markdown-sanitize.js';
 
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -299,13 +300,33 @@ class TelegramChannel {
     try {
       const numericId = jid.replace(/^tg:/, '');
 
-      // Telegram has a 4096 character limit per message — split if needed
+      // Sanitise + send with parse_mode=Markdown so `**bold**` from the
+      // assistant renders cleanly instead of literally. The sanitiser is
+      // designed to avoid Telegram's legacy-Markdown crash modes (odd
+      // delimiter counts, unbalanced brackets, CommonMark `**`).
+      const sanitized = sanitizeTelegramLegacyMarkdown(text);
+
+      // Telegram has a 4096 character limit per message — split if needed.
       const MAX_LENGTH = 4096;
       const replyParams = replyTo ? { reply_parameters: { message_id: parseInt(replyTo, 10) } } : {};
-      const chunks = splitForLimit(text, MAX_LENGTH);
+      const chunks = splitForLimit(sanitized, MAX_LENGTH);
       for (let i = 0; i < chunks.length; i++) {
-        const params = i === 0 ? replyParams : {};
-        await this.bot.api.sendMessage(numericId, chunks[i], params);
+        const baseParams = i === 0 ? { ...replyParams } : {};
+        try {
+          await this.bot.api.sendMessage(numericId, chunks[i], {
+            ...baseParams,
+            parse_mode: 'Markdown',
+          });
+        } catch (err) {
+          // Graceful degradation: if Markdown parsing rejects the chunk
+          // (rare, since the sanitiser guards against the known crash modes),
+          // retry as plain text so the user still gets the message.
+          this.logger.warn(
+            { jid, err: err.message || err },
+            'Markdown send failed, retrying as plain text',
+          );
+          await this.bot.api.sendMessage(numericId, chunks[i], baseParams);
+        }
       }
       this.logger.info({ jid, length: text.length }, 'Telegram message sent');
     } catch (err) {
