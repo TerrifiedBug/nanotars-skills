@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-gmail",
+  "version": "1.0.0",
+  "description": "Add Gmail access to Nanotars via gog CLI (Google Workspace CLI). Agents can search, read, and send emails. Shares OAuth credentials with Google Calendar if already configured. Triggers on \"add gmail\", \"gmail setup\", \"gmail integration\", \"email setup\"."
+}

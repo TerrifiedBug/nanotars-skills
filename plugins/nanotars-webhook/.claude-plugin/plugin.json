@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-webhook",
+  "version": "1.0.0",
+  "description": "Add a webhook HTTP endpoint so external services (Home Assistant, uptime monitors, Proxmox) can push events that trigger agent turns. Avoids token-wasting cron polling. Triggers on \"webhook\", \"add webhook\", \"http endpoint\", \"push events\", \"webhook endpoint\"."
+}

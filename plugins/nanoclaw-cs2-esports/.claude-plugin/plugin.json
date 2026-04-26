@@ -1,5 +1,0 @@
-{
-  "name": "nanoclaw-cs2-esports",
-  "version": "1.0.0",
-  "description": "Add CS2 esports match tracking to NanoClaw. Shows upcoming Counter-Strike 2 matches from Liquipedia. Triggers on \"cs2 matches\", \"esports schedule\", \"counter-strike\"."
-}

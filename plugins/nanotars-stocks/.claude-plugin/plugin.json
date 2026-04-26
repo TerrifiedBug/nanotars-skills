@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-stocks",
+  "version": "1.0.0",
+  "description": "Add stock price and financial data lookups via Yahoo Finance. Triggers on stock price questions, ticker lookups, market data requests."
+}

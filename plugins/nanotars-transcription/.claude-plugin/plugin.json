@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-transcription",
+  "version": "1.0.0",
+  "description": "Add voice message transcription to Nanotars using OpenAI's Whisper API. Automatically transcribes voice notes so the agent can read and respond to them. Triggers on \"add transcription\", \"voice transcription\", \"whisper\", \"transcribe voice\"."
+}

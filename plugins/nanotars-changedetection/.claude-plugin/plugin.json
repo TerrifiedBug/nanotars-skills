@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-changedetection",
+  "version": "1.0.0",
+  "description": "Add changedetection.io integration to Nanotars. Enables agents to create and manage website watches for price monitoring, stock alerts, and content changes. Guides through API key setup and webhook configuration. Triggers on \"add changedetection\", \"changedetection setup\", \"price monitoring\", \"website monitoring\"."
+}

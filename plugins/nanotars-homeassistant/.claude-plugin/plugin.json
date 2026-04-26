@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-homeassistant",
+  "version": "1.0.0",
+  "description": "Add Home Assistant integration to Nanotars via official MCP Server. Enables agents to control smart home devices, query states, and manage automations. Guides through HA MCP Server setup and configures environment. Triggers on \"add home assistant\", \"add homeassistant\", \"home assistant setup\", \"smart home\"."
+}

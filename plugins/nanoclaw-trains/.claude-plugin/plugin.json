@@ -1,5 +1,0 @@
-{
-  "name": "nanoclaw-trains",
-  "version": "1.0.0",
-  "description": "Add UK train departure/arrival information to NanoClaw via National Rail Darwin API. Guides through free API token registration and configures environment. Triggers on \"add trains\", \"train times\", \"national rail\", \"uk trains setup\"."
-}

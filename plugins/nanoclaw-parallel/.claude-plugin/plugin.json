@@ -1,5 +1,0 @@
-{
-  "name": "nanoclaw-parallel",
-  "version": "1.0.0",
-  "description": "Add Parallel AI web research to NanoClaw via MCP Servers. Enables quick web search and deep research tasks with citations. Guides through API key setup. Triggers on \"add parallel\", \"parallel ai\", \"parallel setup\", \"web research\"."
-}

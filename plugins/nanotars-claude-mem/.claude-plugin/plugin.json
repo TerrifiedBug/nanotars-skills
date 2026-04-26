@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-claude-mem",
+  "version": "1.0.0",
+  "description": "Add persistent memory (claude-mem) to Nanotars agent containers. Creates systemd services for the worker daemon and Docker bridge, configures env vars. Run once after claude-mem plugin is installed."
+}

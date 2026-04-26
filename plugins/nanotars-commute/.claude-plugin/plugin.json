@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-commute",
+  "version": "1.0.0",
+  "description": "Add travel time and commute lookup to Nanotars agents using Waze live traffic data. No API key needed. Triggers on \"add commute\", \"commute setup\", \"travel time\", \"waze\"."
+}

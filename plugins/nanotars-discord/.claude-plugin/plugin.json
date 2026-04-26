@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-discord",
+  "version": "1.0.0",
+  "description": "Add Discord as a channel. Runs alongside WhatsApp or other channels."
+}

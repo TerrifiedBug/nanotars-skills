@@ -1,5 +1,0 @@
-{
-  "name": "nanoclaw-n8n",
-  "version": "1.0.0",
-  "description": "Add n8n workflow automation integration to NanoClaw. Enables agents to create monitoring workflows that trigger webhooks instead of burning tokens on frequent polling. Guides through MCP server setup and configures environment. Triggers on \"add n8n\", \"n8n setup\", \"n8n integration\", \"workflow automation\"."
-}

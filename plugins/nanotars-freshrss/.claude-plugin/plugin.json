@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-freshrss",
+  "version": "1.0.0",
+  "description": "Add FreshRSS feed reader integration to Nanotars. Connects agents to a self-hosted FreshRSS instance for news summaries, unread articles, feed management, and daily digests. Guides through API key setup and configures environment. Triggers on \"add freshrss\", \"freshrss setup\", \"rss feeds\", \"add rss\"."
+}
