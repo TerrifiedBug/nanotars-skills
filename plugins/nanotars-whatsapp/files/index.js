@@ -226,6 +226,18 @@ class WhatsAppChannel {
           continue;
         }
 
+        // If WhatsApp included senderPn on the message key, learn the
+        // LID→phone mapping for the sender before translating — this both
+        // populates the cache for future messages and lets translateJid
+        // resolve the current rawJid without an extra signalRepository call.
+        // Mirrors qwibitai/nanoclaw v2 src/channels/whatsapp.ts:497-504.
+        if (rawJid.endsWith('@lid') && msg.key.senderPn) {
+          const pn = msg.key.senderPn;
+          const phoneJid = pn.includes('@') ? pn : `${pn}@s.whatsapp.net`;
+          const lidUser = rawJid.split('@')[0].split(':')[0];
+          this.setLidPhoneMapping(lidUser, phoneJid);
+        }
+
         // Translate LID JID to phone JID if applicable
         const chatJid = await this.translateJid(rawJid);
 
