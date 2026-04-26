@@ -2,6 +2,25 @@ import { Client, GatewayIntentBits, Partials } from 'discord.js';
 
 const MESSAGE_MAX_LENGTH = 2000;
 
+// Sentence/paragraph-aware splitter (ported from nanoclaw v2's splitForLimit).
+// Prefers paragraph (\n\n), then line (\n), then word (space) boundaries; only
+// falls back to a hard slice when none is found within the limit.
+function splitForLimit(text, limit) {
+  if (text.length <= limit) return [text];
+  const chunks = [];
+  let remaining = text;
+  while (remaining.length > limit) {
+    let cut = remaining.lastIndexOf('\n\n', limit);
+    if (cut <= 0) cut = remaining.lastIndexOf('\n', limit);
+    if (cut <= 0) cut = remaining.lastIndexOf(' ', limit);
+    if (cut <= 0) cut = limit;
+    chunks.push(remaining.slice(0, cut).trimEnd());
+    remaining = remaining.slice(cut).trimStart();
+  }
+  if (remaining.length > 0) chunks.push(remaining);
+  return chunks;
+}
+
 class DiscordChannel {
   name = 'discord';
 
@@ -151,20 +170,21 @@ class DiscordChannel {
       }
 
       // Discord has a 2000 character limit per message — split if needed
-      if (text.length <= MESSAGE_MAX_LENGTH) {
+      const chunks = splitForLimit(text, MESSAGE_MAX_LENGTH);
+      if (chunks.length === 1) {
         if (replyTo) {
           try {
             const refMsg = channel.messages.cache.get(replyTo) || await channel.messages.fetch(replyTo);
-            await refMsg.reply(text);
+            await refMsg.reply(chunks[0]);
           } catch {
-            await channel.send(text);
+            await channel.send(chunks[0]);
           }
         } else {
-          await channel.send(text);
+          await channel.send(chunks[0]);
         }
       } else {
-        for (let i = 0; i < text.length; i += MESSAGE_MAX_LENGTH) {
-          await channel.send(text.slice(i, i + MESSAGE_MAX_LENGTH));
+        for (const chunk of chunks) {
+          await channel.send(chunk);
         }
       }
 
