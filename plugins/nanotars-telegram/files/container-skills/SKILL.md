@@ -4,7 +4,7 @@ You are communicating via Telegram.
 
 ## Sending files
 
-File sending (`send_file`) is not supported on this channel. If the user asks for a file, provide the content inline in your message instead.
+`send_file` is supported. Images (`.png/.jpg/.jpeg/.gif/.webp`), videos (`.mp4/.mov/.webm/.mkv`), and audio (`.mp3/.m4a/.ogg/.wav/.opus`) render inline with previews. Other file types are delivered as downloadable documents. Captions are clipped to 1024 characters (Telegram's hard limit).
 
 ## Receiving media
 

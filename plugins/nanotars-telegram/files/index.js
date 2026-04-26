@@ -1,7 +1,56 @@
-import { Bot } from 'grammy';
+import { Bot, InputFile } from 'grammy';
 
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Telegram caption max length (sendPhoto/Video/Audio/Document share this cap).
+const TELEGRAM_CAPTION_MAX = 1024;
+
+// File-extension → Telegram API method mapping for inline-rendered media.
+// Without this, every file goes via sendDocument and renders as a download
+// attachment. Detecting by extension lets us dispatch to sendPhoto / sendVideo
+// / sendAudio so the user sees inline previews instead.
+const MEDIA_EXTENSIONS = {
+  '.png': 'photo',
+  '.jpg': 'photo',
+  '.jpeg': 'photo',
+  '.gif': 'photo',
+  '.webp': 'photo',
+  '.mp4': 'video',
+  '.mov': 'video',
+  '.webm': 'video',
+  '.mkv': 'video',
+  '.mp3': 'audio',
+  '.ogg': 'audio',
+  '.wav': 'audio',
+  '.m4a': 'audio',
+  '.opus': 'audio',
+};
+
+function detectMediaKind(filename, mime) {
+  // Prefer extension since Telegram is filename-driven for previews.
+  if (filename) {
+    const idx = filename.lastIndexOf('.');
+    if (idx !== -1) {
+      const kind = MEDIA_EXTENSIONS[filename.slice(idx).toLowerCase()];
+      if (kind) return kind;
+    }
+  }
+  // Fall back to mime prefix when extension is missing/unknown.
+  if (typeof mime === 'string') {
+    if (mime.startsWith('image/')) return 'photo';
+    if (mime.startsWith('video/')) return 'video';
+    if (mime.startsWith('audio/')) return 'audio';
+  }
+  return null;
+}
+
+function clipCaption(caption) {
+  if (!caption) return undefined;
+  return caption.length > TELEGRAM_CAPTION_MAX
+    ? caption.slice(0, TELEGRAM_CAPTION_MAX)
+    : caption;
 }
 
 // Sentence/paragraph-aware splitter (ported from nanoclaw v2's splitForLimit).
@@ -261,6 +310,58 @@ class TelegramChannel {
       this.logger.info({ jid, length: text.length }, 'Telegram message sent');
     } catch (err) {
       this.logger.error({ jid, err }, 'Failed to send Telegram message');
+    }
+  }
+
+  async sendFile(jid, buffer, mime, fileName, caption) {
+    if (!this.bot) {
+      this.logger.warn('Telegram bot not initialized');
+      return;
+    }
+
+    const numericId = jid.replace(/^tg:/, '');
+    const clippedCaption = clipCaption(caption);
+    const kind = detectMediaKind(fileName, mime);
+    const file = new InputFile(buffer, fileName);
+
+    // Try the typed media call first so images/videos/audio render inline.
+    // On any failure (Telegram rejects the format, network blip, etc.) we
+    // fall back to sendDocument so the user at least gets the file.
+    if (kind === 'photo') {
+      try {
+        await this.bot.api.sendPhoto(numericId, file, { caption: clippedCaption });
+        this.logger.info({ jid, fileName, mime, kind }, 'Telegram media sent');
+        return;
+      } catch (err) {
+        this.logger.warn({ jid, fileName, err: err.message || err }, 'sendPhoto failed, falling back to sendDocument');
+      }
+    } else if (kind === 'video') {
+      try {
+        await this.bot.api.sendVideo(numericId, file, { caption: clippedCaption });
+        this.logger.info({ jid, fileName, mime, kind }, 'Telegram media sent');
+        return;
+      } catch (err) {
+        this.logger.warn({ jid, fileName, err: err.message || err }, 'sendVideo failed, falling back to sendDocument');
+      }
+    } else if (kind === 'audio') {
+      try {
+        await this.bot.api.sendAudio(numericId, file, { caption: clippedCaption });
+        this.logger.info({ jid, fileName, mime, kind }, 'Telegram media sent');
+        return;
+      } catch (err) {
+        this.logger.warn({ jid, fileName, err: err.message || err }, 'sendAudio failed, falling back to sendDocument');
+      }
+    }
+
+    // Fallback path (also the default for non-media file types).
+    try {
+      // InputFile is single-use (consumes the buffer stream); rebuild for the retry.
+      const docFile = new InputFile(buffer, fileName);
+      await this.bot.api.sendDocument(numericId, docFile, { caption: clippedCaption });
+      this.logger.info({ jid, fileName, mime, kind: 'document' }, 'Telegram document sent');
+    } catch (err) {
+      this.logger.error({ jid, fileName, err: err.message || err }, 'Failed to send Telegram file');
+      throw err;
     }
   }
 
