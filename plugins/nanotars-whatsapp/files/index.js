@@ -35,6 +35,7 @@ try {
 
 const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_OUTGOING_QUEUE = 200;
+const SENT_MESSAGE_CACHE_MAX = 256;
 
 class WhatsAppChannel {
   name = 'whatsapp';
@@ -53,6 +54,14 @@ class WhatsAppChannel {
   flushing = false;
   /** @private */
   groupSyncTimerStarted = false;
+  /**
+   * Recently-sent messages keyed by message id. Baileys' getMessage callback
+   * is invoked when WhatsApp asks us to resend a message that needs to be
+   * re-encrypted for a peer that lost it (typical on retry). Without this,
+   * peers see "Waiting for this message" indefinitely.
+   * @private
+   */
+  sentMessageCache = new Map();
   /** @private */
   ffmpegAvailable = false;
   /** @private */
@@ -112,7 +121,14 @@ class WhatsAppChannel {
       printQRInTerminal: false,
       logger: this.logger,
       browser: Browsers.macOS('Chrome'),
-      getMessage: async () => undefined,
+      // Feed Baileys recently-sent messages on retry so peers don't see
+      // "Waiting for this message". Mirrors qwibitai/nanoclaw v2
+      // src/channels/whatsapp.ts:367-373.
+      getMessage: async (key) => {
+        const cached = this.sentMessageCache.get(key.id || '');
+        if (cached) return cached;
+        return proto.Message.fromObject({});
+      },
       syncFullHistory: false,
     });
 
@@ -417,7 +433,8 @@ class WhatsAppChannel {
       if (replyTo) {
         msg.quoted = { key: { remoteJid: jid, id: replyTo, fromMe: false } };
       }
-      await this.sock.sendMessage(jid, msg);
+      const sent = await this.sock.sendMessage(jid, msg);
+      this.rememberSentMessage(sent);
       this.logger.info({ jid, length: prefixed.length }, 'Message sent');
     } catch (err) {
       // If send fails, queue it for retry on reconnect
@@ -432,15 +449,17 @@ class WhatsAppChannel {
       return;
     }
     try {
+      let sent;
       if (mime.startsWith('image/')) {
-        await this.sock.sendMessage(jid, { image: buffer, caption });
+        sent = await this.sock.sendMessage(jid, { image: buffer, caption });
       } else if (mime.startsWith('video/')) {
-        await this.sock.sendMessage(jid, { video: buffer, caption });
+        sent = await this.sock.sendMessage(jid, { video: buffer, caption });
       } else if (mime.startsWith('audio/')) {
-        await this.sock.sendMessage(jid, { audio: buffer });
+        sent = await this.sock.sendMessage(jid, { audio: buffer });
       } else {
-        await this.sock.sendMessage(jid, { document: buffer, mimetype: mime, fileName, caption });
+        sent = await this.sock.sendMessage(jid, { document: buffer, mimetype: mime, fileName, caption });
       }
+      this.rememberSentMessage(sent);
       this.logger.info({ jid, fileName, mime }, 'File sent');
     } catch (err) {
       this.logger.error({ jid, fileName, err }, 'Failed to send file');
@@ -674,6 +693,20 @@ class WhatsAppChannel {
    * metadata invalidation in the upstream adapter).
    * @private
    */
+  /**
+   * Cache a sent message keyed by its WhatsApp id so getMessage can return
+   * it on retry. Bounded by SENT_MESSAGE_CACHE_MAX (drop-oldest).
+   * @private
+   */
+  rememberSentMessage(sent) {
+    if (!sent?.key?.id || !sent.message) return;
+    this.sentMessageCache.set(sent.key.id, sent.message);
+    if (this.sentMessageCache.size > SENT_MESSAGE_CACHE_MAX) {
+      const oldest = this.sentMessageCache.keys().next().value;
+      if (oldest !== undefined) this.sentMessageCache.delete(oldest);
+    }
+  }
+
   setLidPhoneMapping(lidUser, phoneJid) {
     if (!lidUser || !phoneJid) return;
     if (this.lidToPhoneMap[lidUser] === phoneJid) return;
@@ -721,7 +754,8 @@ class WhatsAppChannel {
         if (item.replyTo) {
           msg.quoted = { key: { remoteJid: item.jid, id: item.replyTo, fromMe: false } };
         }
-        await this.sock.sendMessage(item.jid, msg);
+        const sent = await this.sock.sendMessage(item.jid, msg);
+        this.rememberSentMessage(sent);
         this.outgoingQueue.shift();
         this.logger.info({ jid: item.jid, length: item.text.length }, 'Queued message sent');
       }
