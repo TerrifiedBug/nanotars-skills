@@ -1,6 +1,11 @@
 import { Bot, InputFile } from 'grammy';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import {
+  registerApprovalDeliverer,
+  registerApprovalEditor,
+} from '../../../dist/permissions/approval-delivery.js';
+import { routeApprovalClick } from '../../../dist/permissions/approval-click-router.js';
 import { sanitizeTelegramLegacyMarkdown } from './markdown-sanitize.js';
 
 function escapeRegex(str) {
@@ -179,6 +184,83 @@ class TelegramChannel {
     // Command to check bot status
     this.bot.command('ping', (ctx) => {
       ctx.reply(`${this.config.assistantName} is online.`);
+    });
+
+    // Slice 7: native Telegram inline-keyboard approval cards.
+    registerApprovalDeliverer('telegram', async (card) => {
+      try {
+        const chatId = parseInt(String(card.platform_id).replace(/^tg:/, ''), 10);
+        if (!Number.isFinite(chatId)) {
+          return { delivered: false, error: `invalid platform_id: ${card.platform_id}` };
+        }
+        const buttons = card.options.map((opt) => ({
+          text: opt.label,
+          callback_data: `approval:${card.approval_id}:${opt.id}`,
+        }));
+        const msg = await this.bot.api.sendMessage(chatId, `${card.title}\n\n${card.body}`, {
+          reply_markup: { inline_keyboard: [buttons] },
+        });
+        return { delivered: true, platform_message_id: String(msg.message_id) };
+      } catch (err) {
+        this.logger.warn(`[telegram] approval deliverer threw: ${err.message}`);
+        return { delivered: false, error: err.message };
+      }
+    });
+
+    // Slice 7: edit the original card in place after a decision.
+    registerApprovalEditor('telegram', async (target) => {
+      try {
+        const chatId = parseInt(String(target.platform_id).replace(/^tg:/, ''), 10);
+        const messageId = parseInt(target.platform_message_id, 10);
+        if (!Number.isFinite(chatId) || !Number.isFinite(messageId)) {
+          return { ok: false, error: 'invalid chat or message id' };
+        }
+        const verb = {
+          approved: '✅ Approved',
+          rejected: '❌ Rejected',
+          expired: '⏱ Expired',
+        }[target.decision] || '(decided)';
+        const decidedBy = target.decided_by_user_id ? ` by ${target.decided_by_user_id}` : '';
+        const time = new Date().toISOString().slice(11, 16);
+        const newBody = `${target.original.title}\n\n${target.original.body}\n\n${verb}${decidedBy} at ${time} UTC`;
+        await this.bot.api.editMessageText(chatId, messageId, newBody, {
+          reply_markup: { inline_keyboard: [] },
+        });
+        return { ok: true };
+      } catch (err) {
+        this.logger.warn(`[telegram] approval editor threw: ${err.message}`);
+        return { ok: false, error: err.message };
+      }
+    });
+
+    // Slice 7: route inline-button taps through approval-click-router.
+    this.bot.on('callback_query:data', async (ctx) => {
+      const data = ctx.callbackQuery.data || '';
+      const m = data.match(/^approval:([0-9a-f-]+):(.+)$/);
+      if (!m) {
+        await ctx.answerCallbackQuery();
+        return;
+      }
+      const [, approval_id, selected_option] = m;
+      let result;
+      try {
+        result = await routeApprovalClick({
+          approval_id,
+          clicker_channel: 'telegram',
+          clicker_platform_id: `tg:${ctx.chat.id}`,
+          clicker_handle: String(ctx.from.id),
+          clicker_name: ctx.from.username || ctx.from.first_name || '',
+          selected_option,
+        });
+      } catch (err) {
+        this.logger.warn(`[telegram] approval click route threw: ${err.message}`);
+        await ctx.answerCallbackQuery({ text: 'Error processing approval' });
+        return;
+      }
+      const toast = result.handled && result.success
+        ? `Recorded: ${selected_option}`
+        : `Failed: ${(result && result.reason) || 'unauthorized'}`;
+      await ctx.answerCallbackQuery({ text: toast });
     });
 
     this.bot.on('message:text', async (ctx) => {
