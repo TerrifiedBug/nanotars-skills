@@ -1,10 +1,93 @@
 import { Bot, InputFile } from 'grammy';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import {
+  registerApprovalDeliverer,
+  registerApprovalEditor,
+} from '../../../dist/permissions/approval-delivery.js';
+import { routeApprovalClick } from '../../../dist/permissions/approval-click-router.js';
 import { sanitizeTelegramLegacyMarkdown } from './markdown-sanitize.js';
 
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Slice 7: module-level state for approval-card adapters. The deliverer +
+// editor closures capture these refs; the class instance updates them on each
+// connect() so reconnects don't require re-registering (registry would warn
+// on overwrite). Telegram bot lives outside the class for this reason — bot
+// instance changes across reconnects, but the registered closure stays stable.
+let currentBot = null;
+let currentLogger = null;
+let approvalAdaptersRegistered = false;
+
+function ensureApprovalAdaptersRegistered() {
+  if (approvalAdaptersRegistered) return;
+  approvalAdaptersRegistered = true;
+
+  registerApprovalDeliverer('telegram', async (card) => {
+    if (!currentBot) {
+      return { delivered: false, error: 'telegram bot not connected' };
+    }
+    try {
+      const chatId = parseInt(String(card.platform_id).replace(/^tg:/, ''), 10);
+      if (!Number.isFinite(chatId)) {
+        return { delivered: false, error: `invalid platform_id: ${card.platform_id}` };
+      }
+      // Telegram caps callback_data at 64 bytes. Format is
+      // `approval:<uuid>:<opt.id>` = 9 + 36 + 1 + len(opt.id). With a 36-char
+      // option id (e.g. UUID) this overflows. Defensive check — fall back to
+      // text delivery if any option's callback_data exceeds the limit.
+      for (const opt of card.options) {
+        const cbData = `approval:${card.approval_id}:${opt.id}`;
+        if (Buffer.byteLength(cbData, 'utf8') > 64) {
+          return {
+            delivered: false,
+            error: `callback_data exceeds 64 bytes for option "${opt.id}" (${Buffer.byteLength(cbData, 'utf8')} bytes); falling back to text`,
+          };
+        }
+      }
+      const buttons = card.options.map((opt) => ({
+        text: opt.label,
+        callback_data: `approval:${card.approval_id}:${opt.id}`,
+      }));
+      const msg = await currentBot.api.sendMessage(chatId, `${card.title}\n\n${card.body}`, {
+        reply_markup: { inline_keyboard: [buttons] },
+      });
+      return { delivered: true, platform_message_id: String(msg.message_id) };
+    } catch (err) {
+      currentLogger?.warn(`[telegram] approval deliverer threw: ${err.message}`);
+      return { delivered: false, error: err.message };
+    }
+  });
+
+  registerApprovalEditor('telegram', async (target) => {
+    if (!currentBot) {
+      return { ok: false, error: 'telegram bot not connected' };
+    }
+    try {
+      const chatId = parseInt(String(target.platform_id).replace(/^tg:/, ''), 10);
+      const messageId = parseInt(target.platform_message_id, 10);
+      if (!Number.isFinite(chatId) || !Number.isFinite(messageId)) {
+        return { ok: false, error: 'invalid chat or message id' };
+      }
+      const verb = {
+        approved: '✅ Approved',
+        rejected: '❌ Rejected',
+        expired: '⏱ Expired',
+      }[target.decision] || '(decided)';
+      const decidedBy = target.decided_by_user_id ? ` by ${target.decided_by_user_id}` : '';
+      const time = new Date().toISOString().slice(11, 16);
+      const newBody = `${target.original.title}\n\n${target.original.body}\n\n${verb}${decidedBy} at ${time} UTC`;
+      await currentBot.api.editMessageText(chatId, messageId, newBody, {
+        reply_markup: { inline_keyboard: [] },
+      });
+      return { ok: true };
+    } catch (err) {
+      currentLogger?.warn(`[telegram] approval editor threw: ${err.message}`);
+      return { ok: false, error: err.message };
+    }
+  });
 }
 
 // Telegram caption max length (sendPhoto/Video/Audio/Document share this cap).
@@ -179,6 +262,58 @@ class TelegramChannel {
     // Command to check bot status
     this.bot.command('ping', (ctx) => {
       ctx.reply(`${this.config.assistantName} is online.`);
+    });
+
+    // Slice 7: register approval-card adapters once at module level + update
+    // the live bot reference. Reconnects update currentBot but don't re-
+    // register (the deliverer + editor closures stay stable, capturing the
+    // module-level `currentBot` ref instead of `this.bot`).
+    currentBot = this.bot;
+    currentLogger = this.logger;
+    ensureApprovalAdaptersRegistered();
+
+    // Slice 7: route inline-button taps through approval-click-router.
+    // Stays bound to this bot instance — grammy event handlers are per-bot.
+    this.bot.on('callback_query:data', async (ctx) => {
+      const data = ctx.callbackQuery.data || '';
+      const m = data.match(/^approval:([0-9a-f-]+):(.+)$/);
+      if (!m) {
+        await ctx.answerCallbackQuery();
+        return;
+      }
+      const [, approval_id, selected_option] = m;
+      // ctx.chat resolves to ctx.callbackQuery.message?.chat. If Telegram
+      // didn't send the message object (deleted, inline mode), this is
+      // undefined and ctx.chat.id would throw. Read directly + early-return
+      // with a transparent log + toast.
+      const chatId = ctx.callbackQuery.message?.chat?.id;
+      if (chatId == null) {
+        this.logger.warn(
+          { approval_id, fromId: ctx.from?.id },
+          '[telegram] callback_query had no chat (message unavailable); dropping click',
+        );
+        await ctx.answerCallbackQuery({ text: 'Cannot process — message unavailable' });
+        return;
+      }
+      let result;
+      try {
+        result = await routeApprovalClick({
+          approval_id,
+          clicker_channel: 'telegram',
+          clicker_platform_id: `tg:${chatId}`,
+          clicker_handle: String(ctx.from.id),
+          clicker_name: ctx.from.username || ctx.from.first_name || '',
+          selected_option,
+        });
+      } catch (err) {
+        this.logger.warn(`[telegram] approval click route threw: ${err.message}`);
+        await ctx.answerCallbackQuery({ text: 'Error processing approval' });
+        return;
+      }
+      const toast = result.handled && result.success
+        ? `Recorded: ${selected_option}`
+        : `Failed: ${(result && result.reason) || 'unauthorized'}`;
+      await ctx.answerCallbackQuery({ text: toast });
     });
 
     this.bot.on('message:text', async (ctx) => {
