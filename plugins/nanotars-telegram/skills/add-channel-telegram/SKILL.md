@@ -115,7 +115,7 @@ Pool bots are send-only (no polling). When a subagent calls `send_message` with 
 ### Bot not responding
 
 1. Verify `TELEGRAM_BOT_TOKEN` is set in `.env` AND synced to `data/env/env`
-2. Check chat is registered: `sqlite3 store/messages.db "SELECT * FROM registered_groups WHERE jid LIKE 'tg:%'"`
+2. Check chat is registered: `sqlite3 store/messages.db "SELECT mg.platform_id, ag.folder, mg.channel_type FROM messaging_groups mg JOIN messaging_group_agents mga ON mga.messaging_group_id = mg.id JOIN agent_groups ag ON ag.id = mga.agent_group_id WHERE mg.channel_type = 'telegram'"`
 3. For non-main chats: ensure message includes trigger pattern
 4. Check service is running
 
@@ -134,7 +134,11 @@ curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe"
 ## Uninstall
 
 1. Stop NanoClaw
-2. Remove group registrations: `sqlite3 store/messages.db "DELETE FROM registered_groups WHERE jid LIKE 'tg:%'"`
+2. Remove channel registrations (wirings + chats; agent_groups rows are left alone since they may be wired to other channels):
+   ```bash
+   sqlite3 store/messages.db "DELETE FROM messaging_group_agents WHERE messaging_group_id IN (SELECT id FROM messaging_groups WHERE channel_type = 'telegram');"
+   sqlite3 store/messages.db "DELETE FROM messaging_groups WHERE channel_type = 'telegram';"
+   ```
 3. Remove plugin: `rm -rf plugins/channels/telegram/`
 4. Remove `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_POOL` from `.env`
 5. Restart NanoClaw
