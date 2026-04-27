@@ -1,4 +1,6 @@
 import { Bot, InputFile } from 'grammy';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { sanitizeTelegramLegacyMarkdown } from './markdown-sanitize.js';
 
 function escapeRegex(str) {
@@ -76,6 +78,39 @@ async function withRetry(fn, label, logger, maxAttempts = 5) {
     }
   }
   throw lastErr;
+}
+
+/**
+ * Read admin-commands.json and register autocomplete via Telegram's setMyCommands.
+ * Called after bot.start() to populate the / autocomplete in the Telegram UI.
+ * Failure modes are non-fatal: missing file → log warn, skip autocomplete;
+ * setMyCommands API rejection → log warn, continue. The bot keeps working either way.
+ */
+async function setupAdminCommandAutocomplete(bot, dataDir, logger) {
+  const cmdsPath = path.join(dataDir, 'admin-commands.json');
+  let cmds;
+  try {
+    cmds = JSON.parse(await fs.readFile(cmdsPath, 'utf-8'));
+  } catch (err) {
+    // File missing or unreadable — host is older than slice 5, or
+    // someone deleted the file. Bot still works without autocomplete.
+    logger.warn(`[telegram] admin-commands.json not available: ${err.message}`);
+    return;
+  }
+
+  const telegramCmds = cmds.map((c) => ({
+    command: c.name.replace(/^\//, ''),
+    description: `${c.description}${c.usage ? ` (${c.usage})` : ''}`.slice(0, 256),
+  }));
+
+  try {
+    await bot.api.setMyCommands(telegramCmds, {
+      scope: { type: 'chat_administrators' },
+    });
+    logger.info(`[telegram] setMyCommands registered ${telegramCmds.length} admin commands`);
+  } catch (err) {
+    logger.warn(`[telegram] setMyCommands failed: ${err.message}`);
+  }
 }
 
 // Sentence/paragraph-aware splitter (ported from nanoclaw v2's splitForLimit).
@@ -396,7 +431,7 @@ class TelegramChannel {
     // getMe call. Transient DNS / API hiccups during launchd boot would
     // otherwise crash the service immediately — 5 attempts (1s/2s/4s/8s/16s)
     // gives the network ~30s to settle before we surface the error.
-    return withRetry(
+    await withRetry(
       () =>
         new Promise((resolve, reject) => {
           let started = false;
@@ -420,6 +455,12 @@ class TelegramChannel {
       'bot.start',
       this.logger,
     );
+
+    // Register admin command autocomplete via Telegram's setMyCommands.
+    // This reads data/admin-commands.json (written by nanotars host on boot)
+    // and populates the / autocomplete menu for chat_administrators.
+    const dataDir = path.join(process.cwd(), 'data');
+    await setupAdminCommandAutocomplete(this.bot, dataDir, this.logger);
   }
 
   async sendMessage(jid, text, sender, replyTo) {
