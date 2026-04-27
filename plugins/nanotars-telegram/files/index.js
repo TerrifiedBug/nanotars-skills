@@ -181,8 +181,12 @@ async function setupAdminCommandAutocomplete(bot, dataDir, logger) {
     return;
   }
 
+  // Telegram's setMyCommands rejects hyphens (BOT_COMMAND_INVALID — only
+  // a-z, 0-9, _ are allowed). Canonical admin names use hyphens
+  // (/list-users). Convert here; host's normalizeCommand folds underscores
+  // back to hyphens on dispatch lookup so both forms work.
   const telegramCmds = cmds.map((c) => ({
-    command: c.name.replace(/^\//, ''),
+    command: c.name.replace(/^\//, '').replace(/-/g, '_'),
     description: `${c.description}${c.usage ? ` (${c.usage})` : ''}`.slice(0, 256),
   }));
 
