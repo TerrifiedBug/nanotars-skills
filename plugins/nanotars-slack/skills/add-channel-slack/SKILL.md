@@ -168,11 +168,12 @@ curl -s -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.t
 1. Stop NanoClaw
 2. Cancel affected tasks:
    ```bash
-   sqlite3 store/messages.db "UPDATE scheduled_tasks SET status = 'completed' WHERE chat_jid IN (SELECT jid FROM registered_groups WHERE channel = 'slack');"
+   sqlite3 store/messages.db "UPDATE scheduled_tasks SET status = 'completed' WHERE chat_jid IN (SELECT platform_id FROM messaging_groups WHERE channel_type = 'slack');"
    ```
-3. Remove group registrations:
+3. Remove channel registrations (wirings + chats; agent_groups rows left alone since they may be wired to other channels):
    ```bash
-   sqlite3 store/messages.db "DELETE FROM registered_groups WHERE channel = 'slack';"
+   sqlite3 store/messages.db "DELETE FROM messaging_group_agents WHERE messaging_group_id IN (SELECT id FROM messaging_groups WHERE channel_type = 'slack');"
+   sqlite3 store/messages.db "DELETE FROM messaging_groups WHERE channel_type = 'slack';"
    ```
 4. Remove the plugin directory:
    ```bash

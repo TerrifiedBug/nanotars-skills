@@ -70,7 +70,12 @@ Show the user which groups already have webhook endpoints (group name + creation
 Query the database for registered groups and show the user the list. Ask which group should receive webhook events.
 
 ```bash
-sqlite3 store/messages.db "SELECT jid, name, folder FROM registered_groups"
+sqlite3 store/messages.db "
+  SELECT mg.platform_id AS jid, COALESCE(mg.name, ag.name) AS name, ag.folder
+  FROM agent_groups ag
+  LEFT JOIN messaging_group_agents mga ON mga.agent_group_id = ag.id
+  LEFT JOIN messaging_groups mg ON mg.id = mga.messaging_group_id
+"
 ```
 
 ### 5. Generate route and save

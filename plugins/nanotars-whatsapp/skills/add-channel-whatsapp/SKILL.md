@@ -257,7 +257,7 @@ node -e "const c = JSON.parse(require('fs').readFileSync('data/channels/whatsapp
 - **Error 515 "restart required"**: This is normal during initial pairing — the auth script auto-reconnects. If it persists, temporarily stop other WhatsApp-connected apps on the same device. Wait 30 seconds.
 - **QR code too wide**: Use `--serve` flag to get an HTTP-served QR at `http://SERVER_IP:8899`.
 - **Messages sent but not received (DMs)**: WhatsApp may use LID (Linked Identity) JIDs for DMs instead of phone numbers. Check logs for `Translated LID to phone JID`. The WhatsApp plugin handles this automatically via `translateJid`.
-- **Messages not received**: Verify the JID is registered: `sqlite3 store/messages.db "SELECT * FROM registered_groups WHERE channel = 'whatsapp'"`
+- **Messages not received**: Verify the JID is registered: `sqlite3 store/messages.db "SELECT mg.platform_id, ag.folder, mg.channel_type FROM messaging_groups mg JOIN messaging_group_agents mga ON mga.messaging_group_id = mg.id JOIN agent_groups ag ON ag.id = mga.agent_group_id WHERE mg.channel_type = 'whatsapp'"`
 - **WhatsApp disconnected**: The service will show a notification (macOS) or log an error. Run `node plugins/channels/whatsapp/auth.js` to re-authenticate, then restart the service.
 
 ## Uninstall
@@ -265,9 +265,10 @@ node -e "const c = JSON.parse(require('fs').readFileSync('data/channels/whatsapp
 1. Stop the NanoClaw service
 2. Remove the plugin directory: `rm -rf plugins/channels/whatsapp/`
 3. Remove WhatsApp auth data: `rm -rf data/channels/whatsapp/`
-4. Remove registered groups for this channel:
+4. Remove channel registrations (wirings + chats; agent_groups rows are left alone since they may be wired to other channels):
    ```bash
-   sqlite3 store/messages.db "DELETE FROM registered_groups WHERE channel = 'whatsapp'"
+   sqlite3 store/messages.db "DELETE FROM messaging_group_agents WHERE messaging_group_id IN (SELECT id FROM messaging_groups WHERE channel_type = 'whatsapp');"
+   sqlite3 store/messages.db "DELETE FROM messaging_groups WHERE channel_type = 'whatsapp';"
    ```
 5. Rebuild and restart NanoClaw
 6. Group folders under `groups/` are preserved (not automatically deleted)
