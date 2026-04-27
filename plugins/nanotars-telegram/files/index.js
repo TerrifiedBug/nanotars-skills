@@ -317,8 +317,16 @@ class TelegramChannel {
     });
 
     this.bot.on('message:text', async (ctx) => {
-      // Skip commands
-      if (ctx.message.text.startsWith('/')) return;
+      // Skip locally-handled bot.command() handlers (chatid, ping) — they
+      // run separately and we'd double-process them via this generic
+      // message:text path. ALL OTHER slash commands (e.g. slice 5 admin
+      // commands like /help, /grant, /pair-telegram) MUST flow through
+      // to the orchestrator's admin-command-dispatch chain. Strip the
+      // optional `@<botname>` suffix Telegram adds in groups before
+      // matching against the local set.
+      const firstToken = ctx.message.text.trim().split(/\s+/)[0].split('@')[0];
+      const LOCAL_BOT_COMMANDS = new Set(['/chatid', '/ping']);
+      if (LOCAL_BOT_COMMANDS.has(firstToken)) return;
 
       // Cross-channel pairing-codes intercept (host primitive — see
       // nanotars src/pending-codes.ts and the /pair-telegram admin
