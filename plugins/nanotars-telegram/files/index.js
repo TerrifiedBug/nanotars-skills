@@ -105,7 +105,7 @@ async function setupAdminCommandAutocomplete(bot, dataDir, logger) {
 
   try {
     await bot.api.setMyCommands(telegramCmds, {
-      scope: { type: 'chat_administrators' },
+      scope: { type: 'all_chat_administrators' },
     });
     logger.info(`[telegram] setMyCommands registered ${telegramCmds.length} admin commands`);
   } catch (err) {
@@ -458,7 +458,8 @@ class TelegramChannel {
 
     // Register admin command autocomplete via Telegram's setMyCommands.
     // This reads data/admin-commands.json (written by nanotars host on boot)
-    // and populates the / autocomplete menu for chat_administrators.
+    // and populates the / autocomplete menu for chat administrators across
+    // all chats (scope: all_chat_administrators).
     const dataDir = path.join(process.cwd(), 'data');
     await setupAdminCommandAutocomplete(this.bot, dataDir, this.logger);
   }
