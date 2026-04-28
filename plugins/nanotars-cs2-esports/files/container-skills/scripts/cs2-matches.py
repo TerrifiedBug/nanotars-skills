@@ -23,7 +23,7 @@ def build_feed_url(team=None, competition=None, no_tbd=False):
 
 def fetch_matches(days=1, team=None, competition=None, no_tbd=False):
     url = build_feed_url(team=team, competition=competition, no_tbd=no_tbd)
-    req = urllib.request.Request(url, headers={"User-Agent": "nanoclaw-cs2"})
+    req = urllib.request.Request(url, headers={"User-Agent": "tars-cs2"})
     with urllib.request.urlopen(req, timeout=15) as resp:
         ics = resp.read().decode("utf-8")
 
@@ -59,6 +59,8 @@ def main():
     parser.add_argument("--competition", "-c", help="Filter by competition (regex)")
     parser.add_argument("--no-tbd", action="store_true",
                         help="Hide matches with TBD/unannounced teams")
+    parser.add_argument("--include-source-url", action="store_true",
+                        help="Print the Liquipedia matches page URL after the match list")
     args = parser.parse_args()
 
     matches = fetch_matches(
@@ -74,6 +76,9 @@ def main():
         for dt, summary in matches:
             t = dt.strftime("%a %d %b %H:%M UTC")
             print(f"{t} | {summary}")
+
+    if args.include_source_url:
+        print(f"Source: {LIQUIPEDIA_URL}")
 
 
 if __name__ == "__main__":
