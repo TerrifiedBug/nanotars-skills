@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-star-history-trending",
+  "version": "1.0.0",
+  "description": "Scan star-history.com weekly trending repos via agent-browser, filter for relevant tools/agents, and present a curated brief. Triggers on \"trending repos\", \"star history\", \"new tools\"."
+}
