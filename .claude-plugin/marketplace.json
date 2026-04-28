@@ -142,6 +142,13 @@
       "category": "search"
     },
     {
+      "name": "nanotars-parcels",
+      "source": "./plugins/nanotars-parcels",
+      "description": "Add parcel delivery tracking to NanoTars agents via parcelapp.net's API. Enables on-demand \"where's my parcel\" queries plus inclusion in the morning digest. Requires a Parcel app subscription (the API key is granted via the iOS / macOS Parcel app). Triggers on \"add parcels\", \"add parcel tracking\", \"parcel skill\", \"delivery tracking\".",
+      "version": "1.0.0",
+      "category": "utilities"
+    },
+    {
       "name": "nanotars-slack",
       "source": "./plugins/nanotars-slack",
       "description": "Add Slack as a messaging channel. Uses Socket Mode (no public URL needed). Triggers on \"add slack\", \"slack setup\", \"slack channel\".",
