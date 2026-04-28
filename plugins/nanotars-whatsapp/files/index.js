@@ -311,6 +311,86 @@ class WhatsAppChannel {
         // Always notify about chat metadata for group discovery
         this.config.onChatMetadata(chatJid, timestamp);
 
+        // Cross-channel pairing-codes intercept (host primitive — see
+        // nanotars src/pending-codes.ts and the /register-group admin
+        // command). When the inbound text is exactly 4 digits, try to
+        // consume the code BEFORE the registered-chat filter — otherwise
+        // pairing codes from unregistered chats would be silently dropped
+        // and the operator could never claim the chat. Mirrors Telegram
+        // intercept in plugins/channels/telegram/index.js:296.
+        if (typeof this.config.consumePendingCode === 'function') {
+          const rawText =
+            msg.message?.conversation ||
+            msg.message?.extendedTextMessage?.text || '';
+          const candidate = rawText.trim();
+          if (/^\d{4}$/.test(candidate)) {
+            const isGroup = chatJid.endsWith('@g.us');
+            const rawSender = msg.key.participant || msg.key.remoteJid || '';
+            const senderJid = await this.translateJid(rawSender);
+            const senderForPair = msg.pushName || senderJid.split('@')[0] || null;
+            const chatNameForPair = msg.pushName || chatJid;
+            try {
+              const result = await this.config.consumePendingCode({
+                code: candidate,
+                channel: 'whatsapp',
+                sender: senderForPair,
+                platformId: chatJid,
+                isGroup,
+                name: chatNameForPair,
+                candidate: rawText,
+              });
+              if (result && result.matched) {
+                const registered = result.registered;
+                const registrationError = result.registration_error;
+                let confirmationText;
+                if (registered) {
+                  const intentLabel =
+                    typeof result.intent === 'string'
+                      ? result.intent
+                      : JSON.stringify(result.intent);
+                  confirmationText = `✓ Pairing success — this chat is now registered (intent: ${intentLabel}).`;
+                } else {
+                  const reason = registrationError || 'unknown registration error';
+                  confirmationText =
+                    `Pairing matched but registration failed: ${reason}. ` +
+                    `Contact an admin — the chat will not receive agent replies until this is resolved.`;
+                }
+                try {
+                  await this.sock.sendMessage(rawJid, { text: confirmationText });
+                } catch (err) {
+                  this.logger.warn(
+                    { err: err.message, chatJid },
+                    'Failed to send WhatsApp pairing confirmation',
+                  );
+                }
+                if (registered) {
+                  this.logger.info(
+                    {
+                      platformId: chatJid,
+                      intent: result.intent,
+                      agent_group_id: registered.agent_group_id,
+                      messaging_group_id: registered.messaging_group_id,
+                    },
+                    'WhatsApp pairing code consumed and chat registered',
+                  );
+                } else {
+                  this.logger.warn(
+                    { platformId: chatJid, intent: result.intent, registrationError },
+                    'WhatsApp pairing code consumed but registration failed',
+                  );
+                }
+                continue; // short-circuit — do NOT deliver to the agent
+              }
+            } catch (err) {
+              // Fail open: a pairing primitive bug must not break normal traffic.
+              this.logger.error(
+                { err: err.message, candidate },
+                'WhatsApp pairing intercept threw; passing message through',
+              );
+            }
+          }
+        }
+
         // Only deliver full message for registered groups
         const groups = this.config.registeredGroups();
         if (groups[chatJid]) {

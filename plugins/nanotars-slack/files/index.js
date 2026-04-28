@@ -101,6 +101,80 @@ class SlackChannel {
     );
     this.config.onChatMetadata(chatJid, timestamp, chatName);
 
+    // Cross-channel pairing-codes intercept (host primitive — see
+    // nanotars src/pending-codes.ts and the /register-group admin
+    // command). When the inbound text is exactly 4 digits, try to
+    // consume the code BEFORE the registered-chat filter — otherwise
+    // pairing codes from unregistered chats would be silently dropped
+    // and the operator could never claim the chat. Mirrors Telegram
+    // intercept in plugins/channels/telegram/index.js:296.
+    if (typeof this.config.consumePendingCode === 'function') {
+      const candidate = (message.text || '').trim();
+      if (/^\d{4}$/.test(candidate)) {
+        // channel_type is 'C' (public), 'G' (private group), 'D' (DM), 'mpim' (multi-DM).
+        const isGroup = !(message.channel_type === 'im');
+        try {
+          const result = await this.config.consumePendingCode({
+            code: candidate,
+            channel: 'slack',
+            sender: senderName,
+            platformId: chatJid,
+            isGroup,
+            name: chatName,
+            candidate: message.text,
+          });
+          if (result && result.matched) {
+            const registered = result.registered;
+            const registrationError = result.registration_error;
+            let confirmationText;
+            if (registered) {
+              const intentLabel =
+                typeof result.intent === 'string'
+                  ? result.intent
+                  : JSON.stringify(result.intent);
+              confirmationText = `:white_check_mark: Pairing success — this chat is now registered (intent: ${intentLabel}).`;
+            } else {
+              const reason = registrationError || 'unknown registration error';
+              confirmationText =
+                `Pairing matched but registration failed: ${reason}. ` +
+                `Contact an admin — the chat will not receive agent replies until this is resolved.`;
+            }
+            try {
+              await client.chat.postMessage({ channel: message.channel, text: confirmationText });
+            } catch (err) {
+              this.logger.warn(
+                { err: err.message, chatJid },
+                'Failed to send Slack pairing confirmation',
+              );
+            }
+            if (registered) {
+              this.logger.info(
+                {
+                  platformId: chatJid,
+                  intent: result.intent,
+                  agent_group_id: registered.agent_group_id,
+                  messaging_group_id: registered.messaging_group_id,
+                },
+                'Slack pairing code consumed and chat registered',
+              );
+            } else {
+              this.logger.warn(
+                { platformId: chatJid, intent: result.intent, registrationError },
+                'Slack pairing code consumed but registration failed',
+              );
+            }
+            return; // short-circuit — do NOT deliver to the agent
+          }
+        } catch (err) {
+          // Fail open: a pairing primitive bug must not break normal traffic.
+          this.logger.error(
+            { err: err.message, candidate },
+            'Slack pairing intercept threw; passing message through',
+          );
+        }
+      }
+    }
+
     // Only deliver full messages for registered groups
     const group = this.config.registeredGroups()[chatJid];
     if (!group) {
