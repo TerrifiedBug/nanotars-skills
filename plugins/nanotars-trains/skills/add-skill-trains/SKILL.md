@@ -1,6 +1,6 @@
 ---
 name: add-skill-trains
-description: Add UK train departure/arrival information to NanoClaw via National Rail Darwin API. Guides through free API token registration and configures environment. Triggers on "add trains", "train times", "national rail", "uk trains setup".
+description: Add UK train departure/arrival information to NanoTars via National Rail Darwin API. Guides through free API token registration and configures environment. Triggers on "add trains", "train times", "national rail", "uk trains setup".
 ---
 
 # Add UK Trains
@@ -9,12 +9,12 @@ Configures live UK train departure and arrival data for agent containers using t
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -86,7 +86,7 @@ If it fails:
 
 ```bash
 npm run build
-systemctl --user restart nanotars  # or launchctl on macOS
+nanotars restart  # or launchctl on macOS
 ```
 
 ## Verify

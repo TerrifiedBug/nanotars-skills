@@ -9,19 +9,19 @@ Adds stock price and financial data lookups using Yahoo Finance's free API. No A
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
 
 ## Prerequisites
 
-- NanoClaw must be set up and running (`/nanotars-setup`)
+- NanoTars must be set up and running (`/nanotars-setup`)
 
 ## Install
 
@@ -45,7 +45,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 4. Rebuild and restart:
    ```bash
    npm run build
-   sudo systemctl --user restart nanotars  # or: launchctl unload ~/Library/LaunchAgents/com.nanotars.plist && launchctl load ~/Library/LaunchAgents/com.nanotars.plist
+   nanotars restart  # or: launchctl unload ~/Library/LaunchAgents/com.nanotars.plist && launchctl load ~/Library/LaunchAgents/com.nanotars.plist
    ```
 
 ## Verify

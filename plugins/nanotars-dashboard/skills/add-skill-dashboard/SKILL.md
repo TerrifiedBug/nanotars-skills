@@ -5,23 +5,23 @@ description: Add admin dashboard with system monitoring and task management. Tri
 
 # Add Dashboard
 
-Adds an admin dashboard plugin to NanoClaw — a server-rendered web UI for monitoring system health, managing scheduled tasks, viewing messages, and inspecting groups. Uses htmx for live updates, Tailwind CSS for styling, and bearer token auth for security.
+Adds an admin dashboard plugin to NanoTars — a server-rendered web UI for monitoring system health, managing scheduled tasks, viewing messages, and inspecting groups. Uses htmx for live updates, Tailwind CSS for styling, and bearer token auth for security.
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
 
 ## Prerequisites
 
-- NanoClaw must be set up and running (`/nanotars-setup`)
+- NanoTars must be set up and running (`/nanotars-setup`)
 - A `DASHBOARD_SECRET` token (any random string) for authentication
 
 ## Install
@@ -79,7 +79,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 7. Rebuild and restart:
    ```bash
    npm run build
-   systemctl --user restart nanotars  # or launchctl on macOS
+   nanotars restart  # or launchctl on macOS
    ```
 
 ## Verify

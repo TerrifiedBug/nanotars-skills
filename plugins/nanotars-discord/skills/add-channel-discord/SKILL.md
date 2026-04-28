@@ -14,12 +14,12 @@ This skill installs the Discord channel plugin and registers a Discord chat.
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -75,7 +75,7 @@ Wait for the user to provide the bot token.
 5. Rebuild and restart:
    ```bash
    npm run build
-   systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanotars 2>/dev/null
+   nanotars restart 2>/dev/null
    ```
 
 6. Verify the bot connected:
@@ -102,7 +102,7 @@ The easiest way to get a channel ID is dynamic discovery:
 
 4. Restart to pick up the registration:
    ```bash
-   systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanotars 2>/dev/null
+   nanotars restart 2>/dev/null
    ```
 
 ## Verify
@@ -122,7 +122,7 @@ The easiest way to get a channel ID is dynamic discovery:
 
 To remove the Discord channel:
 
-1. **Stop NanoClaw**
+1. **Stop NanoTars**
 
 2. **Cancel affected tasks** (if any scheduled tasks target Discord groups):
    ```bash
@@ -142,4 +142,4 @@ To remove the Discord channel:
 
 5. **Remove `DISCORD_BOT_TOKEN` from `.env`**
 
-6. **Restart NanoClaw** — group folders and message history are preserved.
+6. **Restart NanoTars** — group folders and message history are preserved.

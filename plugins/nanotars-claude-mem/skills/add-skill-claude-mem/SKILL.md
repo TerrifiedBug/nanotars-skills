@@ -1,6 +1,6 @@
 ---
 name: add-skill-claude-mem
-description: Add persistent memory (claude-mem) to NanoClaw agent containers. Creates systemd service for the worker daemon, configures env vars. Run once after claude-mem plugin is installed.
+description: Add persistent memory (claude-mem) to NanoTars agent containers. Creates systemd service for the worker daemon, configures env vars. Run once after claude-mem plugin is installed.
 ---
 
 # Add Claude-Mem to Agent Containers
@@ -15,12 +15,12 @@ The claude-mem worker daemon runs on the host (port 37777, bound to `0.0.0.0`) a
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -131,7 +131,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 10. Rebuild and restart:
     ```bash
     npm run build
-    systemctl --user restart nanotars
+    nanotars restart
     ```
 
 ## Verify
@@ -172,6 +172,6 @@ systemctl start claude-mem-worker
 
 3. Remove `CLAUDE_MEM_URL` from `.env`
 
-4. Rebuild and restart NanoClaw
+4. Rebuild and restart NanoTars
 
 **Warning:** Do NOT delete `/root/.claude-mem/`. This directory contains the shared memory database used by both the host and container agents. Removing the plugin only stops container access — the host's claude-mem continues to function independently.

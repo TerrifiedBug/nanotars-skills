@@ -1,23 +1,23 @@
 ---
 name: add-calendar
-description: Add calendar access to NanoClaw. Supports Google Calendar (gog CLI with OAuth) and CalDAV providers (iCloud, Nextcloud, Fastmail via cal CLI). Guides through authentication and configures environment variables. Triggers on "add calendar", "add caldav", "icloud calendar", "google calendar", "calendar setup".
+description: Add calendar access to NanoTars. Supports Google Calendar (gog CLI with OAuth) and CalDAV providers (iCloud, Nextcloud, Fastmail via cal CLI). Guides through authentication and configures environment variables. Triggers on "add calendar", "add caldav", "icloud calendar", "google calendar", "calendar setup".
 ---
 
 # Add Calendar Access
 
-Calendar integration for NanoClaw agent containers. Two tools are available:
+Calendar integration for NanoTars agent containers. Two tools are available:
 
 - **`gog`** -- Google Calendar (OAuth, read/write)
 - **`cal`** -- CalDAV providers: iCloud, Nextcloud, Fastmail (Basic Auth, read/write)
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -92,16 +92,16 @@ App-specific password instructions:
 **iCloud:**
 > 1. Go to https://appleid.apple.com/account/manage
 > 2. Sign in > "Sign-In and Security" > "App-Specific Passwords"
-> 3. Click + > Name it "NanoClaw" > Create
+> 3. Click + > Name it "NanoTars" > Create
 > 4. Copy the password (format: xxxx-xxxx-xxxx-xxxx)
 
 **Nextcloud:**
 > 1. Settings > Security > "Devices & Sessions"
-> 2. Enter "NanoClaw" > "Create new app password"
+> 2. Enter "NanoTars" > "Create new app password"
 
 **Fastmail:**
 > 1. Settings > Privacy & Security > Integrations
-> 2. "New app password" > Select CalDAV > Name it "NanoClaw"
+> 2. "New app password" > Select CalDAV > Name it "NanoTars"
 
 Save to `.env`:
 ```bash
@@ -161,7 +161,7 @@ EOF
 Rebuild and restart:
 ```bash
 ./container/build.sh
-systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanotars 2>/dev/null || echo "Restart the NanoClaw service manually"
+nanotars restart 2>/dev/null || echo "Restart the NanoTars service manually"
 ```
 
 ## Verify
@@ -251,9 +251,9 @@ If this plugin is already installed and you want **different credentials for a s
    ```
    These values override the global `.env` for that group's containers only.
 
-5. Restart NanoClaw:
+5. Restart NanoTars:
    ```bash
-   sudo systemctl --user restart nanotars
+   nanotars restart
    ```
 
 ## Remove

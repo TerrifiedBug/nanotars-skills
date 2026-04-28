@@ -1,6 +1,6 @@
 ---
 name: add-skill-commute
-description: Add travel time and commute lookup to NanoClaw agents using Waze live traffic data. No API key needed. Triggers on "add commute", "commute setup", "travel time", "waze".
+description: Add travel time and commute lookup to NanoTars agents using Waze live traffic data. No API key needed. Triggers on "add commute", "commute setup", "travel time", "waze".
 ---
 
 # Add Commute
@@ -9,12 +9,12 @@ Adds live traffic-based travel time lookups using the Waze routing API (no API k
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -33,7 +33,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 3. Rebuild and restart:
    ```bash
    npm run build
-   systemctl --user restart nanotars  # or launchctl on macOS
+   nanotars restart  # or launchctl on macOS
    ```
 
 ## Verify

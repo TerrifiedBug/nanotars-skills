@@ -1,6 +1,6 @@
 ---
 name: add-skill-homeassistant
-description: Add Home Assistant integration to NanoClaw via official MCP Server. Enables agents to control smart home devices, query states, and manage automations. Guides through HA MCP Server setup and configures environment. Triggers on "add home assistant", "add homeassistant", "home assistant setup", "smart home".
+description: Add Home Assistant integration to NanoTars via official MCP Server. Enables agents to control smart home devices, query states, and manage automations. Guides through HA MCP Server setup and configures environment. Triggers on "add home assistant", "add homeassistant", "home assistant setup", "smart home".
 ---
 
 # Add Home Assistant (MCP Server)
@@ -9,12 +9,12 @@ Configures Home Assistant integration for agent containers using HA's official M
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -65,7 +65,7 @@ Collect from the user:
    > To create a long-lived access token:
    > 1. In Home Assistant, click your profile icon (bottom-left)
    > 2. Scroll to **Long-Lived Access Tokens**
-   > 3. Click **Create Token**, name it "NanoClaw"
+   > 3. Click **Create Token**, name it "NanoTars"
    > 4. Copy the token immediately (it's only shown once)
 
 ## Step 4: Test Connection
@@ -136,7 +136,7 @@ cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/homeassistant/
 
 ```bash
 npm run build
-systemctl --user restart nanotars  # or launchctl on macOS
+nanotars restart  # or launchctl on macOS
 ```
 
 ## Verify
@@ -183,9 +183,9 @@ If this plugin is already installed and you want **different credentials for a s
    ```
    These values override the global `.env` for that group's containers only.
 
-5. Restart NanoClaw:
+5. Restart NanoTars:
    ```bash
-   sudo systemctl --user restart nanotars
+   nanotars restart
    ```
 
 ## Remove

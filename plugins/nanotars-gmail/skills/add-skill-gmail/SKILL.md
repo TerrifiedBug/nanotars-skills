@@ -1,6 +1,6 @@
 ---
 name: add-skill-gmail
-description: Add Gmail access to NanoClaw via gog CLI (Google Workspace CLI). Agents can search, read, and send emails. Shares OAuth credentials with Google Calendar if already configured. Triggers on "add gmail", "gmail setup", "gmail integration", "email setup".
+description: Add Gmail access to NanoTars via gog CLI (Google Workspace CLI). Agents can search, read, and send emails. Shares OAuth credentials with Google Calendar if already configured. Triggers on "add gmail", "gmail setup", "gmail integration", "email setup".
 ---
 
 # Add Gmail (gog CLI)
@@ -11,12 +11,12 @@ Configures Gmail access for agent containers using the `gog` CLI, the same tool 
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -156,7 +156,7 @@ cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/gmail/
 
 ```bash
 ./container/build.sh && npm run build
-systemctl --user restart nanotars 2>/dev/null || launchctl kickstart -k gui/$(id -u)/com.nanotars 2>/dev/null || echo "Restart the NanoClaw service manually"
+nanotars restart 2>/dev/null || echo "Restart the NanoTars service manually"
 ```
 
 ## Verify
@@ -193,9 +193,9 @@ If this plugin is already installed and you want **different credentials for a s
    ```
    These values override the global `.env` for that group's containers only.
 
-5. Restart NanoClaw:
+5. Restart NanoTars:
    ```bash
-   sudo systemctl --user restart nanotars
+   nanotars restart
    ```
 
 ## Remove

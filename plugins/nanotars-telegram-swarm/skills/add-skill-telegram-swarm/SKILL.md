@@ -11,12 +11,12 @@ This skill adds Agent Teams (Swarm) support to an existing Telegram channel. Eac
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -122,7 +122,7 @@ As the lead agent who created the team:
 
 ## Step 5: Restart Service
 
-Restart NanoClaw so the plugin picks up the new pool tokens.
+Restart NanoTars so the plugin picks up the new pool tokens.
 
 Check logs for pool initialization:
 
@@ -166,4 +166,4 @@ To remove Agent Swarm support while keeping basic Telegram:
 2. Remove `TELEGRAM_BOT_POOL` from `.env`
 3. Sync: `cp .env data/env/env`
 4. Remove Agent Teams section from group CLAUDE.md files
-5. Restart NanoClaw
+5. Restart NanoTars

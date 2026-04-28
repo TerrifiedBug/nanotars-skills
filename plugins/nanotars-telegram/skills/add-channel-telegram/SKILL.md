@@ -9,12 +9,12 @@ This skill installs the Telegram channel plugin and guides through authenticatio
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -133,8 +133,8 @@ curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe"
 
 ## Uninstall
 
-1. Stop NanoClaw
+1. Stop NanoTars
 2. Remove group registrations: use `/nanotars-remove-plugin` for a guided removal, or the operator delete-group flow — do not reach into the SQLite schema directly
 3. Remove plugin: `rm -rf plugins/channels/telegram/`
 4. Remove `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_POOL` from `.env`
-5. Restart NanoClaw
+5. Restart NanoTars
