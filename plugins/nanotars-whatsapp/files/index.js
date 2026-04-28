@@ -115,6 +115,16 @@ class WhatsAppChannel {
   ffmpegChecked = false;
   /** @private */
   reconnectAttempt = 0;
+  /**
+   * Per-jid set of chats where the bot has just replied; setTyping silently
+   * skips 'composing' for these jids until the user sends a new inbound,
+   * which clears the flag. Without this, the orchestrator's 4s polling
+   * interval re-asserts the typing indicator on top of our `paused` while
+   * the agent's runAgent is still finishing post-send work (tool calls,
+   * cleanup), so the indicator looks permanent until WA's ~25s expire.
+   * @private
+   */
+  typingSuppressed = new Set();
   /** @private */
   config;
   /** @private */
@@ -311,6 +321,15 @@ class WhatsAppChannel {
         // Always notify about chat metadata for group discovery
         this.config.onChatMetadata(chatJid, timestamp);
 
+        // The user just sent a new message in this chat — clear any
+        // post-reply typing-suppression so the next setTyping poll can
+        // legitimately show the bot composing again. Skip for fromMe so
+        // the bot's own outbound echo doesn't clear the suppression it
+        // just set in sendMessage.
+        if (!msg.key.fromMe) {
+          this.typingSuppressed.delete(chatJid);
+        }
+
         // Cross-channel pairing-codes intercept (host primitive — see
         // nanotars src/pending-codes.ts and the /register-group admin
         // command). When the inbound text is exactly 4 digits, try to
@@ -391,9 +410,13 @@ class WhatsAppChannel {
           }
         }
 
-        // Only deliver full message for registered groups
-        const groups = this.config.registeredGroups();
-        if (groups[chatJid]) {
+        // Only deliver full message for registered chats. The legacy
+        // registeredGroups() Record<jid> was replaced by the entity-model
+        // resolveAgentsForInbound(channel, platformId) accessor — empty
+        // array means the chat has no agent_group wiring.
+        const wirings = this.config.resolveAgentsForInbound('whatsapp', chatJid);
+        if (wirings.length > 0) {
+          const agentGroup = wirings[0].agentGroup;
           let content =
             msg.message?.conversation ||
             msg.message?.extendedTextMessage?.text ||
@@ -463,7 +486,7 @@ class WhatsAppChannel {
           let mediaPath;
           let mediaHostPath;
           if (hasMedia) {
-            const media = await this.downloadMedia(msg, groups[chatJid].folder);
+            const media = await this.downloadMedia(msg, agentGroup.folder);
             if (media) {
               mediaType = media.type;
               mediaPath = media.path;
@@ -507,7 +530,17 @@ class WhatsAppChannel {
 
         // Send read receipt for incoming messages
         if (!msg.key.fromMe) {
-          this.sock.readMessages([msg.key]).catch(() => {});
+          this.sock.readMessages([msg.key]).then(() => {
+            this.logger.info(
+              { remoteJid: msg.key.remoteJid, msgId: msg.key.id },
+              'WhatsApp read receipt sent',
+            );
+          }).catch((err) => {
+            this.logger.warn(
+              { remoteJid: msg.key.remoteJid, msgId: msg.key.id, err: err.message },
+              'WhatsApp read receipt failed',
+            );
+          });
         }
         } catch (err) {
           this.logger.error(
@@ -569,6 +602,13 @@ class WhatsAppChannel {
       const sent = await this.sock.sendMessage(jid, msg);
       this.rememberSentMessage(sent);
       this.logger.info({ jid, length: prefixed.length }, 'Message sent');
+      // Clear the typing indicator. The orchestrator polls setTyping every
+      // 4s while generating; without suppression here, ticks that fire after
+      // our reply (during runAgent post-send work) would re-assert
+      // `composing` on top of the paused. Cleared on next inbound from this
+      // chat — see messages.upsert handler.
+      this.typingSuppressed.add(jid);
+      this.sock.sendPresenceUpdate('paused', jid).catch(() => {});
     } catch (err) {
       // If send fails, queue it for retry on reconnect
       this.outgoingQueue.push({ jid, text: prefixed, replyTo });
@@ -752,15 +792,25 @@ class WhatsAppChannel {
   }
 
   /**
-   * Send typing indicator. Internal method, not part of the Channel interface.
+   * Send typing indicator. Channel-interface contract is single-arg
+   * (jid) — orchestrator polls every 4s while the agent is generating
+   * and clears the interval when done, so each call means "still
+   * composing". Default isTyping=true keeps the optional second arg as
+   * an internal escape hatch.
    */
-  async setTyping(jid, isTyping) {
+  async setTyping(jid, isTyping = true) {
     try {
+      // Suppress 'composing' polls after the bot has just replied, until
+      // the next inbound from this chat. Explicit setTyping(jid, false)
+      // calls always pass through.
+      if (isTyping && this.typingSuppressed.has(jid)) {
+        return;
+      }
       const status = isTyping ? 'composing' : 'paused';
       this.logger.debug({ jid, status }, 'Sending presence update');
       await this.sock.sendPresenceUpdate(status, jid);
     } catch (err) {
-      this.logger.debug({ jid, err }, 'Failed to update typing status');
+      this.logger.debug({ jid, err: err.message }, 'Failed to update typing status');
     }
   }
 
