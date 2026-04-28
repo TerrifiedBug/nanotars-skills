@@ -1,6 +1,6 @@
 ---
 name: add-skill-changedetection
-description: Add changedetection.io integration to NanoClaw. Enables agents to create and manage website watches for price monitoring, stock alerts, and content changes. Guides through API key setup and webhook configuration. Triggers on "add changedetection", "changedetection setup", "price monitoring", "website monitoring".
+description: Add changedetection.io integration to NanoTars. Enables agents to create and manage website watches for price monitoring, stock alerts, and content changes. Guides through API key setup and webhook configuration. Triggers on "add changedetection", "changedetection setup", "price monitoring", "website monitoring".
 ---
 
 # Add ChangeDetection.io
@@ -9,12 +9,12 @@ Configures changedetection.io API access for agent containers and sets up webhoo
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -22,7 +22,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 ## Prerequisites
 
 - A running changedetection.io instance (self-hosted)
-- NanoClaw webhook server must be configured (`/add-skill-webhook`)
+- NanoTars webhook server must be configured (`/add-skill-webhook`)
 
 ## Step 1: Check Existing Configuration
 
@@ -90,11 +90,11 @@ else:
 If the test fails:
 - **Connection refused**: Check the URL and that changedetection.io is running
 - **401/403**: API key is wrong -- regenerate in Settings > API
-- **Timeout**: Check network/firewall between NanoClaw and changedetection.io
+- **Timeout**: Check network/firewall between NanoTars and changedetection.io
 
 ## Step 7: Test Webhook Connectivity
 
-Verify changedetection.io can reach NanoClaw's webhook endpoint:
+Verify changedetection.io can reach NanoTars's webhook endpoint:
 
 ```bash
 source .env
@@ -116,7 +116,7 @@ else:
 
 ```bash
 npm run build
-systemctl --user restart nanotars  # or launchctl on macOS
+nanotars restart  # or launchctl on macOS
 ```
 
 ## Verify
@@ -125,7 +125,7 @@ Ask the agent to:
 - "Monitor this product page for price changes: [URL]"
 - "Show me all active changedetection watches"
 
-When a watched page changes, changedetection.io will webhook NanoClaw and the agent will notify you automatically.
+When a watched page changes, changedetection.io will webhook NanoTars and the agent will notify you automatically.
 
 ## Existing Installation (Per-Group Credentials)
 
@@ -147,9 +147,9 @@ If this plugin is already installed and you want **different credentials for a s
    ```
    These values override the global `.env` for that group's containers only.
 
-5. Restart NanoClaw:
+5. Restart NanoTars:
    ```bash
-   sudo systemctl --user restart nanotars
+   nanotars restart
    ```
 
 ## Remove

@@ -9,12 +9,12 @@ This skill installs the Telegram channel plugin and guides through authenticatio
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -115,7 +115,7 @@ Pool bots are send-only (no polling). When a subagent calls `send_message` with 
 ### Bot not responding
 
 1. Verify `TELEGRAM_BOT_TOKEN` is set in `.env` AND synced to `data/env/env`
-2. Check chat is registered: `sqlite3 store/messages.db "SELECT mg.platform_id, ag.folder, mg.channel_type FROM messaging_groups mg JOIN messaging_group_agents mga ON mga.messaging_group_id = mg.id JOIN agent_groups ag ON ag.id = mga.agent_group_id WHERE mg.channel_type = 'telegram'"`
+2. Check chat is registered: run `/nanotars-groups` to list registered groups (don't query the SQLite schema directly — it migrated to the entity model in 2026-04 and inline SQL silently breaks)
 3. For non-main chats: ensure message includes trigger pattern
 4. Check service is running
 
@@ -133,12 +133,8 @@ curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe"
 
 ## Uninstall
 
-1. Stop NanoClaw
-2. Remove channel registrations (wirings + chats; agent_groups rows are left alone since they may be wired to other channels):
-   ```bash
-   sqlite3 store/messages.db "DELETE FROM messaging_group_agents WHERE messaging_group_id IN (SELECT id FROM messaging_groups WHERE channel_type = 'telegram');"
-   sqlite3 store/messages.db "DELETE FROM messaging_groups WHERE channel_type = 'telegram';"
-   ```
+1. Stop NanoTars
+2. Remove group registrations: use `/nanotars-remove-plugin` for a guided removal, or the operator delete-group flow — do not reach into the SQLite schema directly
 3. Remove plugin: `rm -rf plugins/channels/telegram/`
 4. Remove `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_POOL` from `.env`
-5. Restart NanoClaw
+5. Restart NanoTars

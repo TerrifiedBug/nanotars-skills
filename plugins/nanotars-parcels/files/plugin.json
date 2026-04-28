@@ -1,0 +1,9 @@
+{
+  "name": "parcels",
+  "description": "Parcel delivery tracking via parcelapp.net's API",
+  "containerEnvVars": ["PARCEL_API_KEY"],
+  "hooks": [],
+  "channels": ["*"],
+  "groups": ["*"],
+  "version": "1.0.0"
+}

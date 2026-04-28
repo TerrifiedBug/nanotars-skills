@@ -1,6 +1,6 @@
 ---
 name: add-skill-norish
-description: Add Norish recipe import to NanoClaw agents. Send recipe URLs to your Norish instance for automatic import. Triggers on "add norish", "norish setup", "recipe import", "norish integration".
+description: Add Norish recipe import to NanoTars agents. Send recipe URLs to your Norish instance for automatic import. Triggers on "add norish", "norish setup", "recipe import", "norish integration".
 ---
 
 # Add Norish
@@ -9,12 +9,12 @@ Adds the ability to import recipes into your Norish instance by URL. When the ag
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -52,7 +52,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 5. Rebuild and restart:
    ```bash
    npm run build
-   systemctl --user restart nanotars  # or launchctl on macOS
+   nanotars restart  # or launchctl on macOS
    ```
 
 ## Verify
@@ -94,7 +94,7 @@ The agent uses curl to POST recipe URLs to your Norish instance's `/api/import/r
 The API key is wrong. Check `.env` has the correct `NORISH_API_KEY`.
 
 ### Connection refused
-Check `NORISH_URL` in `.env` is correct and the Norish instance is running. Make sure the URL is reachable from the NanoClaw server.
+Check `NORISH_URL` in `.env` is correct and the Norish instance is running. Make sure the URL is reachable from the NanoTars server.
 
 ### Agent not using the skill
 Make sure the plugin was copied correctly:
@@ -122,9 +122,9 @@ If this plugin is already installed and you want **different credentials for a s
    ```
    These values override the global `.env` for that group's containers only.
 
-5. Restart NanoClaw:
+5. Restart NanoTars:
    ```bash
-   sudo systemctl --user restart nanotars
+   nanotars restart
    ```
 
 ## Remove

@@ -1,6 +1,6 @@
 ---
 name: add-skill-github
-description: Add GitHub API access to NanoClaw. Enables agents to monitor repos, check PRs, issues, commits, and CI status. Guides through Personal Access Token setup. Triggers on "add github", "github setup", "github integration", "github token".
+description: Add GitHub API access to NanoTars. Enables agents to monitor repos, check PRs, issues, commits, and CI status. Guides through Personal Access Token setup. Triggers on "add github", "github setup", "github integration", "github token".
 ---
 
 # Add GitHub
@@ -9,12 +9,12 @@ Configures GitHub API access for agent containers, enabling repo monitoring, PR/
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -61,7 +61,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 5. Rebuild and restart:
    ```bash
    npm run build
-   systemctl --user restart nanotars  # or launchctl on macOS
+   nanotars restart  # or launchctl on macOS
    ```
 
 ## Verify
@@ -98,9 +98,9 @@ If this plugin is already installed and you want **different credentials for a s
    ```
    These values override the global `.env` for that group's containers only.
 
-5. Restart NanoClaw:
+5. Restart NanoTars:
    ```bash
-   sudo systemctl --user restart nanotars
+   nanotars restart
    ```
 
 ## Remove

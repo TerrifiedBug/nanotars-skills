@@ -9,12 +9,12 @@ This skill installs the Slack channel plugin and guides through authentication.
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -42,7 +42,7 @@ Walk the user through creating a Slack App:
 
 1. Go to https://api.slack.com/apps
 2. Click **Create New App** > **From scratch**
-3. Name it (e.g., "TARS", "NanoClaw Bot")
+3. Name it (e.g., "TARS", "NanoTars Bot")
 4. Select the workspace to install to
 
 ### 2b. Enable Socket Mode
@@ -165,19 +165,10 @@ curl -s -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.t
 
 ## Uninstall
 
-1. Stop NanoClaw
-2. Cancel affected tasks:
-   ```bash
-   sqlite3 store/messages.db "UPDATE scheduled_tasks SET status = 'completed' WHERE chat_jid IN (SELECT platform_id FROM messaging_groups WHERE channel_type = 'slack');"
-   ```
-3. Remove channel registrations (wirings + chats; agent_groups rows left alone since they may be wired to other channels):
-   ```bash
-   sqlite3 store/messages.db "DELETE FROM messaging_group_agents WHERE messaging_group_id IN (SELECT id FROM messaging_groups WHERE channel_type = 'slack');"
-   sqlite3 store/messages.db "DELETE FROM messaging_groups WHERE channel_type = 'slack';"
-   ```
-4. Remove the plugin directory:
-   ```bash
-   rm -rf plugins/channels/slack/
-   ```
-5. Remove `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN` from `.env`
-6. Restart NanoClaw — group folders and message history are preserved.
+Use `/nanotars-remove-plugin` for a guided removal — it stops the service, removes the plugin directory, cleans up channel data, and removes registered-group entries via the proper IPC primitives. Manual steps if needed:
+
+1. `nanotars stop`
+2. From your main chat (before stopping), run `/delete-group <folder>` for each Slack-wired group you want to remove. Skip this if you want the agent_group rows preserved for re-wiring to a different channel.
+3. `rm -rf plugins/channels/slack/`
+4. Remove `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN` from `.env`
+5. `nanotars restart` — group folders and message history are preserved.

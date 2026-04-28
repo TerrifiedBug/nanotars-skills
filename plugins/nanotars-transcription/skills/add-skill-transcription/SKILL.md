@@ -1,6 +1,6 @@
 ---
 name: add-skill-transcription
-description: Add voice message transcription to NanoClaw using OpenAI's Whisper API. Automatically transcribes voice notes so the agent can read and respond to them. Triggers on "add transcription", "voice transcription", "whisper", "transcribe voice".
+description: Add voice message transcription to NanoTars using OpenAI's Whisper API. Automatically transcribes voice notes so the agent can read and respond to them. Triggers on "add transcription", "voice transcription", "whisper", "transcribe voice".
 ---
 
 # Add Voice Transcription
@@ -11,12 +11,12 @@ Works with any channel plugin that sets `mediaType='audio'` and `mediaHostPath` 
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -76,7 +76,7 @@ Ask the user if they want to restrict access. Most users will keep the defaults.
 
 ```bash
 npm run build
-systemctl --user restart nanotars  # or launchctl on macOS
+nanotars restart  # or launchctl on macOS
 ```
 
 ## Verify

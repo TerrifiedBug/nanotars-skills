@@ -5,18 +5,18 @@ description: Add a webhook HTTP endpoint so external services (Home Assistant, u
 
 # Add Webhook Endpoint
 
-HTTP webhook endpoint for NanoClaw. External services POST events to per-group endpoints, which get injected into the message pipeline — no cron polling needed.
+HTTP webhook endpoint for NanoTars. External services POST events to per-group endpoints, which get injected into the message pipeline — no cron polling needed.
 
 Each group gets its own URL path (`/webhook/<group-folder>`) and unique secret token for isolation.
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -148,7 +148,7 @@ For the main group, also mention: `POST /webhook` (no path suffix) routes to mai
 ### 5c. Restart
 
 ```bash
-npm run build && systemctl --user restart nanotars  # or launchctl on macOS
+npm run build && nanotars restart  # or launchctl on macOS
 ```
 
 The routes file is also hot-reloaded — after the first restart, adding new routes takes effect without restarting.
@@ -231,19 +231,19 @@ sqlite3 store/messages.db "SELECT id, sender_name, content, timestamp FROM messa
 ### Home Assistant Automation
 ```yaml
 automation:
-  - alias: "Notify NanoClaw on motion"
+  - alias: "Notify NanoTars on motion"
     trigger:
       - platform: state
         entity_id: binary_sensor.front_door_motion
         to: "on"
     action:
-      - service: rest_command.nanoclaw_webhook
+      - service: rest_command.nanotars_webhook
         data:
           source: home-assistant
           text: "Motion detected on front door camera at {{ now().strftime('%H:%M') }}"
 
 rest_command:
-  nanoclaw_webhook:
+  nanotars_webhook:
     url: "http://NANOCLAW_IP:3457/webhook/main"
     method: POST
     headers:

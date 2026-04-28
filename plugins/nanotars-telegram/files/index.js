@@ -237,6 +237,17 @@ class TelegramChannel {
   logger;
   /** @private - swarm bot pool, loaded dynamically from pool.js if present */
   pool = null;
+  /**
+   * Per-jid set of chats where the bot has just replied; setTyping silently
+   * skips while flagged. Without this, the orchestrator's 4s polling
+   * re-asserts `chat_action: typing` after the bot's reply (during
+   * runAgent's post-send work like tool calls / cleanup), so Telegram's
+   * 5s typing-action auto-expire never wins and the indicator looks
+   * permanent. Cleared on next inbound from the same chat.
+   * Mirrors the WhatsApp pattern in plugins/channels/whatsapp/index.js.
+   * @private
+   */
+  typingSuppressed = new Set();
 
   constructor(config, logger) {
     this.config = config;
@@ -328,6 +339,12 @@ class TelegramChannel {
     });
 
     this.bot.on('message:text', async (ctx) => {
+      // The user just sent a new message in this chat — clear the
+      // post-reply typing-suppression so the next setTyping poll can
+      // legitimately show the bot composing again. See typingSuppressed
+      // field comment for the full picture.
+      this.typingSuppressed.delete(`tg:${ctx.chat.id}`);
+
       // Skip locally-handled bot.command() handlers (chatid, ping) — they
       // run separately and we'd double-process them via this generic
       // message:text path. ALL OTHER slash commands (e.g. slice 5 admin
@@ -662,8 +679,30 @@ class TelegramChannel {
         }
       }
       this.logger.info({ jid, length: text.length }, 'Telegram message sent');
+      // Suppress further setTyping polls until the next inbound from this
+      // chat. Telegram has no explicit "stop typing" action — the indicator
+      // auto-clears in ~5s, but the orchestrator's 4s polling would re-fire
+      // it during runAgent's post-send work and the indicator would look
+      // permanent. Cleared in the inbound message:text handler.
+      this.typingSuppressed.add(jid);
     } catch (err) {
       this.logger.error({ jid, err }, 'Failed to send Telegram message');
+    }
+  }
+
+  /**
+   * Send typing indicator. Called by the orchestrator on a 4s polling
+   * interval while the agent is generating; the typingSuppressed Set
+   * gates polls between the bot's reply and the next user inbound.
+   */
+  async setTyping(jid) {
+    if (!this.bot) return;
+    if (this.typingSuppressed.has(jid)) return;
+    try {
+      const numericId = jid.replace(/^tg:/, '');
+      await this.bot.api.sendChatAction(numericId, 'typing');
+    } catch (err) {
+      this.logger.error({ jid, err: err.message }, 'Failed to send Telegram typing indicator');
     }
   }
 

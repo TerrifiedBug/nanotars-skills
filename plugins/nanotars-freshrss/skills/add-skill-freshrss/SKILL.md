@@ -1,6 +1,6 @@
 ---
 name: add-skill-freshrss
-description: Add FreshRSS feed reader integration to NanoClaw. Connects agents to a self-hosted FreshRSS instance for news summaries, unread articles, feed management, and daily digests. Guides through API key setup and configures environment. Triggers on "add freshrss", "freshrss setup", "rss feeds", "add rss".
+description: Add FreshRSS feed reader integration to NanoTars. Connects agents to a self-hosted FreshRSS instance for news summaries, unread articles, feed management, and daily digests. Guides through API key setup and configures environment. Triggers on "add freshrss", "freshrss setup", "rss feeds", "add rss".
 ---
 
 # Add FreshRSS
@@ -9,12 +9,12 @@ Configures RSS feed access for agent containers using a self-hosted FreshRSS ins
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -110,7 +110,7 @@ If the test fails:
 
 ```bash
 npm run build
-systemctl --user restart nanotars  # or launchctl on macOS
+nanotars restart  # or launchctl on macOS
 ```
 
 ## Verify
@@ -138,9 +138,9 @@ If this plugin is already installed and you want **different credentials for a s
    ```
    These values override the global `.env` for that group's containers only.
 
-5. Restart NanoClaw:
+5. Restart NanoTars:
    ```bash
-   sudo systemctl --user restart nanotars
+   nanotars restart
    ```
 
 ## Remove

@@ -1,20 +1,20 @@
 ---
 name: add-n8n
-description: Add n8n workflow automation integration to NanoClaw. Enables agents to create monitoring workflows that trigger webhooks instead of burning tokens on frequent polling. Guides through MCP server setup and configures environment. Triggers on "add n8n", "n8n setup", "n8n integration", "workflow automation".
+description: Add n8n workflow automation integration to NanoTars. Enables agents to create monitoring workflows that trigger webhooks instead of burning tokens on frequent polling. Guides through MCP server setup and configures environment. Triggers on "add n8n", "n8n setup", "n8n integration", "workflow automation".
 ---
 
 # Add n8n Workflow Automation
 
-Connects NanoClaw to an n8n instance so agents can create and manage automated workflows. Instead of burning agent tokens on frequent scheduled tasks that poll for changes, n8n does the polling (free) and only triggers the agent via webhook when something actually happens.
+Connects NanoTars to an n8n instance so agents can create and manage automated workflows. Instead of burning agent tokens on frequent scheduled tasks that poll for changes, n8n does the polling (free) and only triggers the agent via webhook when something actually happens.
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -55,13 +55,13 @@ Tell the user:
 
 ## Step 3: Configure Webhook URL (optional)
 
-**Skip this step if the webhook plugin isn't set up or the user doesn't need n8n->NanoClaw callbacks yet.**
+**Skip this step if the webhook plugin isn't set up or the user doesn't need n8n->NanoTars callbacks yet.**
 
 If `NANOCLAW_WEBHOOK_SECRET` exists in `.env`, offer to configure the callback URL so n8n workflows can trigger agent turns.
 
 Determine the webhook URL that n8n can reach:
-- If n8n and NanoClaw are on the same machine: `http://localhost:3457/webhook` or `http://HOST_IP:3457/webhook`
-- If on different machines: use the NanoClaw host's LAN IP or DNS name
+- If n8n and NanoTars are on the same machine: `http://localhost:3457/webhook` or `http://HOST_IP:3457/webhook`
+- If on different machines: use the NanoTars host's LAN IP or DNS name
 
 ```bash
 # Get the current webhook port
@@ -69,7 +69,7 @@ grep "^WEBHOOK_PORT=" .env 2>/dev/null || echo "WEBHOOK_PORT=3457 (default)"
 grep "^NANOCLAW_WEBHOOK_SECRET=" .env 2>/dev/null && echo "SECRET_EXISTS" || echo "NO_SECRET"
 ```
 
-Ask the user: "What URL can your n8n instance use to reach NanoClaw's webhook?" and suggest the likely value based on the network setup.
+Ask the user: "What URL can your n8n instance use to reach NanoTars's webhook?" and suggest the likely value based on the network setup.
 
 ## Step 4: Save to .env
 
@@ -135,7 +135,7 @@ else:
 If the test fails:
 - **401/403**: API key is wrong or not activated
 - **Connection refused**: Check n8n URL and that the instance is running
-- **Timeout**: Network/firewall issue between NanoClaw host and n8n
+- **Timeout**: Network/firewall issue between NanoTars host and n8n
 
 ## Step 8: Test Webhook Reachability from n8n's Perspective
 
@@ -157,7 +157,7 @@ print('OK' if r.get('ok') else f'FAILED - {json.dumps(r)}')
 
 ```bash
 npm run build
-systemctl --user restart nanotars  # or launchctl on macOS
+nanotars restart  # or launchctl on macOS
 ```
 
 ## Verify
@@ -184,9 +184,9 @@ If this plugin is already installed and you want **different credentials for a s
    ```
    These values override the global `.env` for that group's containers only.
 
-5. Restart NanoClaw:
+5. Restart NanoTars:
    ```bash
-   sudo systemctl --user restart nanotars
+   nanotars restart
    ```
 
 ## Remove

@@ -1,6 +1,6 @@
 ---
 name: add-skill-imap-read
-description: Add read-only IMAP email access to NanoClaw agent containers. Supports multiple providers (Gmail, Yahoo, Outlook, any IMAP server). Guides through app password setup and configures environment variables. Triggers on "add email", "add imap", "email integration", "read emails".
+description: Add read-only IMAP email access to NanoTars agent containers. Supports multiple providers (Gmail, Yahoo, Outlook, any IMAP server). Guides through app password setup and configures environment variables. Triggers on "add email", "add imap", "email integration", "read emails".
 ---
 
 # Add IMAP Email Reader
@@ -9,12 +9,12 @@ Read-only email access for agent containers via IMAP. Supports multiple provider
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -48,13 +48,13 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
    **Gmail:**
    > 1. Go to https://myaccount.google.com/apppasswords
    > 2. You must have 2-Step Verification enabled
-   > 3. Select "Other" as the app name, enter "NanoClaw"
+   > 3. Select "Other" as the app name, enter "NanoTars"
    > 4. Copy the 16-character password (spaces don't matter)
 
    **Yahoo:**
    > 1. Go to https://login.yahoo.com/account/security
    > 2. Click "Generate app password"
-   > 3. Select "Other app", enter "NanoClaw"
+   > 3. Select "Other app", enter "NanoTars"
    > 4. Copy the generated password
 
    **Outlook/Hotmail:**
@@ -114,7 +114,7 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 7. Rebuild and restart:
    ```bash
    npm run build
-   systemctl --user restart nanotars  # or launchctl on macOS
+   nanotars restart  # or launchctl on macOS
    ```
 
 ## Verify
@@ -148,9 +148,9 @@ If this plugin is already installed and you want **different credentials for a s
    ```
    These values override the global `.env` for that group's containers only.
 
-5. Restart NanoClaw:
+5. Restart NanoTars:
    ```bash
-   sudo systemctl --user restart nanotars
+   nanotars restart
    ```
 
 ## Remove

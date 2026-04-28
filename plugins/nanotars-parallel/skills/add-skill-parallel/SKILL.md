@@ -1,6 +1,6 @@
 ---
 name: add-skill-parallel
-description: Add Parallel AI web research to NanoClaw via MCP Servers. Enables quick web search and deep research tasks with citations. Guides through API key setup. Triggers on "add parallel", "parallel ai", "parallel setup", "web research".
+description: Add Parallel AI web research to NanoTars via MCP Servers. Enables quick web search and deep research tasks with citations. Guides through API key setup. Triggers on "add parallel", "parallel ai", "parallel setup", "web research".
 ---
 
 # Add Parallel AI (MCP Servers)
@@ -9,12 +9,12 @@ Configures Parallel AI web research for agent containers using their HTTP-based 
 
 ## Preflight
 
-Before installing, verify NanoClaw is set up:
+Before installing, verify NanoTars is set up:
 
 ```bash
 [ -d node_modules ] && echo "DEPS: ok" || echo "DEPS: missing"
 docker image inspect nanoclaw-agent:latest &>/dev/null && echo "IMAGE: ok" || echo "IMAGE: not built"
-(grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f ~/.claude/.credentials.json ]) && echo "AUTH: ok" || echo "AUTH: missing"
+if grep -q "ANTHROPIC_API_KEY\|CLAUDE_CODE_OAUTH_TOKEN" .env 2>/dev/null || [ -f "$HOME/.claude/.credentials.json" ]; then echo "AUTH: ok"; else echo "AUTH: missing"; fi
 ```
 
 If any check fails, tell the user to run `/nanotars-setup` first and stop.
@@ -79,7 +79,7 @@ Ask the user if they want to restrict access. Most users will keep the defaults.
 
 ```bash
 npm run build
-systemctl --user restart nanotars  # or launchctl on macOS
+nanotars restart  # or launchctl on macOS
 ```
 
 ## Verify
