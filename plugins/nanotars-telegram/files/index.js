@@ -181,19 +181,30 @@ async function setupAdminCommandAutocomplete(bot, dataDir, logger) {
     return;
   }
 
+  // Telegram's setMyCommands rejects hyphens (BOT_COMMAND_INVALID — only
+  // a-z, 0-9, _ are allowed). Canonical admin names use hyphens
+  // (/list-users). Convert here; host's normalizeCommand folds underscores
+  // back to hyphens on dispatch lookup so both forms work.
   const telegramCmds = cmds.map((c) => ({
-    command: c.name.replace(/^\//, ''),
+    command: c.name.replace(/^\//, '').replace(/-/g, '_'),
     description: `${c.description}${c.usage ? ` (${c.usage})` : ''}`.slice(0, 256),
   }));
 
-  try {
-    await bot.api.setMyCommands(telegramCmds, {
-      scope: { type: 'all_chat_administrators' },
-    });
-    logger.info(`[telegram] setMyCommands registered ${telegramCmds.length} admin commands`);
-  } catch (err) {
-    logger.warn(`[telegram] setMyCommands failed: ${err.message}`);
+  // Set commands for BOTH scopes:
+  //   - all_private_chats: 1:1 DMs with the bot (the most common operator
+  //     scenario — single-user nanotars install). The original slice 5
+  //     scope (`all_chat_administrators`) does NOT cover private chats, so
+  //     `/` autocomplete was empty in DMs.
+  //   - all_chat_administrators: admins in group/supergroup chats also
+  //     see the dropdown. Kept for parity with slice 5's intent.
+  for (const scopeType of ['all_private_chats', 'all_chat_administrators']) {
+    try {
+      await bot.api.setMyCommands(telegramCmds, { scope: { type: scopeType } });
+    } catch (err) {
+      logger.warn(`[telegram] setMyCommands(${scopeType}) failed: ${err.message}`);
+    }
   }
+  logger.info(`[telegram] setMyCommands registered ${telegramCmds.length} admin commands (DMs + group admins)`);
 }
 
 // Sentence/paragraph-aware splitter (ported from nanoclaw v2's splitForLimit).
