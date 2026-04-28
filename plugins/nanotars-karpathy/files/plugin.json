@@ -1,0 +1,7 @@
+{
+  "name": "karpathy",
+  "description": "Karpathy LLM Wiki — persistent personal knowledge base maintained incrementally by the agent.",
+  "channels": ["*"],
+  "groups": ["*"],
+  "version": "1.0.0"
+}

@@ -107,6 +107,13 @@
       "category": "productivity"
     },
     {
+      "name": "nanotars-karpathy",
+      "source": "./plugins/nanotars-karpathy",
+      "description": "Add a persistent Karpathy-style LLM Wiki to a NanoTars group. The agent maintains a structured, interlinked markdown knowledge base across ingest / query / lint operations. Triggers on \"add wiki\", \"add karpathy wiki\", \"llm wiki\", \"knowledge base\", \"wiki skill\".",
+      "version": "1.0.0",
+      "category": "utilities"
+    },
+    {
       "name": "nanotars-n8n",
       "source": "./plugins/nanotars-n8n",
       "description": "Add n8n workflow automation integration to Nanotars. Enables agents to create monitoring workflows that trigger webhooks instead of burning tokens on frequent polling. Guides through MCP server setup and configures environment. Triggers on \"add n8n\", \"n8n setup\", \"n8n integration\", \"workflow automation\".",
@@ -149,18 +156,18 @@
       "category": "monitoring"
     },
     {
-      "name": "nanotars-telegram-swarm",
-      "source": "./plugins/nanotars-telegram-swarm",
-      "description": "Add Agent Swarm (Teams) support to Telegram. Each subagent gets its own bot identity in the group. Requires Telegram channel to be set up first (use /add-channel-telegram). Triggers on \"agent swarm\", \"agent teams telegram\", \"telegram swarm\", \"bot pool\".",
-      "version": "1.0.0",
-      "category": "utilities"
-    },
-    {
       "name": "nanotars-telegram",
       "source": "./plugins/nanotars-telegram",
       "description": "Add Telegram as a channel. Can replace WhatsApp entirely or run alongside it. Also configurable as a control-only channel (triggers actions) or passive channel (receives notifications only).",
       "version": "1.0.0",
       "category": "channels"
+    },
+    {
+      "name": "nanotars-telegram-swarm",
+      "source": "./plugins/nanotars-telegram-swarm",
+      "description": "Add Agent Swarm (Teams) support to Telegram. Each subagent gets its own bot identity in the group. Requires Telegram channel to be set up first (use /add-channel-telegram). Triggers on \"agent swarm\", \"agent teams telegram\", \"telegram swarm\", \"bot pool\".",
+      "version": "1.0.0",
+      "category": "utilities"
     },
     {
       "name": "nanotars-trains",
