@@ -152,11 +152,64 @@ Also ask about channel types. If the user wants this plugin available on all cha
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/gmail/
 ```
 
-## Step 7: Build and Restart
+## Step 7: Allow the Mount Path
+
+The runtime silently rejects container mounts not covered by `~/.config/nanotars/mount-allowlist.json`. Gmail mounts `data/gogcli` (shared with the calendar plugin if installed). Check whether it's already covered:
+
+```bash
+node -e '
+const fs = require("fs"), path = require("path");
+const home = process.env.HOME;
+const allowlistPath = path.join(home, ".config/nanotars/mount-allowlist.json");
+const expand = (p) => p.startsWith("~/") ? path.join(home, p.slice(2)) : path.resolve(p);
+const target = path.resolve("data/gogcli");
+if (!fs.existsSync(allowlistPath)) { console.log("MISSING_ALLOWLIST"); process.exit(0); }
+const list = JSON.parse(fs.readFileSync(allowlistPath, "utf8"));
+const covered = (list.allowedRoots || []).some(r => {
+  const a = expand(r.path);
+  return target === a || target.startsWith(a + "/");
+});
+console.log(covered ? "COVERED" : "NEEDS_ALLOWLIST_ENTRY");
+'
+```
+
+If `COVERED`, skip ahead. Otherwise tell the user:
+
+> Gmail needs `~/nanotars/data/gogcli` added to the mount allowlist (`~/.config/nanotars/mount-allowlist.json`). I'll add a tightly-scoped entry — only this directory will be mountable, no broader access. OK?
+
+After confirmation:
+
+```bash
+node -e '
+const fs = require("fs"), path = require("path");
+const allowlistPath = path.join(process.env.HOME, ".config/nanotars/mount-allowlist.json");
+fs.mkdirSync(path.dirname(allowlistPath), { recursive: true });
+const list = fs.existsSync(allowlistPath)
+  ? JSON.parse(fs.readFileSync(allowlistPath, "utf8"))
+  : { allowedRoots: [], blockedPatterns: [], nonMainReadOnly: true };
+list.allowedRoots = list.allowedRoots || [];
+list.allowedRoots.push({
+  path: "~/nanotars/data/gogcli",
+  allowReadWrite: true,
+  description: "gmail/calendar plugin gogcli OAuth state"
+});
+fs.writeFileSync(allowlistPath, JSON.stringify(list, null, 2) + "\n");
+JSON.parse(fs.readFileSync(allowlistPath, "utf8"));
+console.log("ALLOWLIST_UPDATED");
+'
+```
+
+## Step 8: Build and Restart
 
 ```bash
 ./container/build.sh && npm run build
 nanotars restart 2>/dev/null || echo "Restart the NanoTars service manually"
+```
+
+After restart, remove any stale agent containers so the next message spawns a fresh one with the new mount applied:
+
+```bash
+docker ps --format '{{.Names}}' | grep '^nanoclaw-' | xargs -r docker rm -f
 ```
 
 ## Verify
