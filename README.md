@@ -55,6 +55,7 @@ Or browse all skills: run `/plugin` and go to the **Discover** tab.
 | `nanotars-freshrss` | Self-hosted RSS feed reader via FreshRSS API |
 | `nanotars-github` | GitHub API access for PRs, issues, commits, and repo monitoring |
 | `nanotars-n8n` | n8n workflow automation — create, monitor, and trigger workflows |
+| `nanotars-star-history-trending` | Weekly trending-repo scan from star-history.com, filtered for relevant tools |
 | `nanotars-stocks` | Stock prices and financial data via Yahoo Finance |
 | `nanotars-webhook` | HTTP webhook endpoint for push events from external services |
 
