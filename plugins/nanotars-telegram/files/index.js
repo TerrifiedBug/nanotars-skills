@@ -1,6 +1,4 @@
 import { Bot, InputFile } from 'grammy';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import {
   registerApprovalDeliverer,
   registerApprovalEditor,
@@ -161,50 +159,6 @@ async function withRetry(fn, label, logger, maxAttempts = 5) {
     }
   }
   throw lastErr;
-}
-
-/**
- * Read admin-commands.json and register autocomplete via Telegram's setMyCommands.
- * Called after bot.start() to populate the / autocomplete in the Telegram UI.
- * Failure modes are non-fatal: missing file → log warn, skip autocomplete;
- * setMyCommands API rejection → log warn, continue. The bot keeps working either way.
- */
-async function setupAdminCommandAutocomplete(bot, dataDir, logger) {
-  const cmdsPath = path.join(dataDir, 'admin-commands.json');
-  let cmds;
-  try {
-    cmds = JSON.parse(await fs.readFile(cmdsPath, 'utf-8'));
-  } catch (err) {
-    // File missing or unreadable — host is older than slice 5, or
-    // someone deleted the file. Bot still works without autocomplete.
-    logger.warn(`[telegram] admin-commands.json not available: ${err.message}`);
-    return;
-  }
-
-  // Telegram's setMyCommands rejects hyphens (BOT_COMMAND_INVALID — only
-  // a-z, 0-9, _ are allowed). Canonical admin names use hyphens
-  // (/list-users). Convert here; host's normalizeCommand folds underscores
-  // back to hyphens on dispatch lookup so both forms work.
-  const telegramCmds = cmds.map((c) => ({
-    command: c.name.replace(/^\//, '').replace(/-/g, '_'),
-    description: `${c.description}${c.usage ? ` (${c.usage})` : ''}`.slice(0, 256),
-  }));
-
-  // Set commands for BOTH scopes:
-  //   - all_private_chats: 1:1 DMs with the bot (the most common operator
-  //     scenario — single-user nanotars install). The original slice 5
-  //     scope (`all_chat_administrators`) does NOT cover private chats, so
-  //     `/` autocomplete was empty in DMs.
-  //   - all_chat_administrators: admins in group/supergroup chats also
-  //     see the dropdown. Kept for parity with slice 5's intent.
-  for (const scopeType of ['all_private_chats', 'all_chat_administrators']) {
-    try {
-      await bot.api.setMyCommands(telegramCmds, { scope: { type: scopeType } });
-    } catch (err) {
-      logger.warn(`[telegram] setMyCommands(${scopeType}) failed: ${err.message}`);
-    }
-  }
-  logger.info(`[telegram] setMyCommands registered ${telegramCmds.length} admin commands (DMs + group admins)`);
 }
 
 // Sentence/paragraph-aware splitter (ported from nanoclaw v2's splitForLimit).
@@ -494,9 +448,11 @@ class TelegramChannel {
       // Store chat metadata for discovery
       this.config.onChatMetadata(chatJid, timestamp, chatName);
 
-      // Only deliver full message for registered groups
-      const group = this.config.registeredGroups()[chatJid];
-      if (!group) {
+      // Only deliver full message for registered chats. The legacy
+      // registeredGroups() Record<jid> was replaced by the entity-model
+      // resolveAgentsForInbound(channel, platformId) accessor — empty
+      // array means the chat has no agent_group wiring.
+      if (this.config.resolveAgentsForInbound('telegram', chatJid).length === 0) {
         this.logger.debug(
           { chatJid, chatName },
           'Message from unregistered Telegram chat',
@@ -534,8 +490,7 @@ class TelegramChannel {
     // Handle non-text messages with placeholders so the agent knows something was sent
     const storeNonText = (ctx, placeholder) => {
       const chatJid = `tg:${ctx.chat.id}`;
-      const group = this.config.registeredGroups()[chatJid];
-      if (!group) return;
+      if (this.config.resolveAgentsForInbound('telegram', chatJid).length === 0) return;
 
       const timestamp = new Date(ctx.message.date * 1000).toISOString();
       const senderName =
@@ -627,12 +582,35 @@ class TelegramChannel {
       this.logger,
     );
 
-    // Register admin command autocomplete via Telegram's setMyCommands.
-    // This reads data/admin-commands.json (written by nanotars host on boot)
-    // and populates the / autocomplete menu for chat administrators across
-    // all chats (scope: all_chat_administrators).
-    const dataDir = path.join(process.cwd(), 'data');
-    await setupAdminCommandAutocomplete(this.bot, dataDir, this.logger);
+    // Slice 5 backport: register admin commands for `/` autocomplete.
+    // Set commands for BOTH scopes so it works in DMs (single-operator
+    // bot scenario) AND in groups (where admins see the dropdown).
+    // `all_chat_administrators` alone (slice 5's original choice) doesn't
+    // apply to private chats.
+    try {
+      const { promises: fs } = await import('node:fs');
+      const path = (await import('node:path')).default;
+      const cmdsPath = path.join(process.cwd(), 'data', 'admin-commands.json');
+      const cmds = JSON.parse(await fs.readFile(cmdsPath, 'utf-8'));
+      // Telegram's setMyCommands rejects hyphens (BOT_COMMAND_INVALID — only
+      // a-z, 0-9, _ are allowed). Canonical admin names use hyphens
+      // (/list-users). Convert here; host's normalizeCommand folds
+      // underscores back to hyphens on dispatch lookup so both forms work.
+      const tgCmds = cmds.map((c) => ({
+        command: c.name.replace(/^\//, '').replace(/-/g, '_'),
+        description: `${c.description}${c.usage ? ` (${c.usage})` : ''}`.slice(0, 256),
+      }));
+      for (const scopeType of ['all_private_chats', 'all_chat_administrators']) {
+        try {
+          await this.bot.api.setMyCommands(tgCmds, { scope: { type: scopeType } });
+        } catch (err) {
+          this.logger.warn(`[telegram] setMyCommands(${scopeType}) failed: ${err.message}`);
+        }
+      }
+      this.logger.info(`[telegram] setMyCommands registered ${tgCmds.length} admin commands (DMs + group admins)`);
+    } catch (err) {
+      this.logger.warn(`[telegram] setMyCommands setup skipped: ${err.message}`);
+    }
   }
 
   async sendMessage(jid, text, sender, replyTo) {
@@ -690,22 +668,6 @@ class TelegramChannel {
     }
   }
 
-  /**
-   * Send typing indicator. Called by the orchestrator on a 4s polling
-   * interval while the agent is generating; the typingSuppressed Set
-   * gates polls between the bot's reply and the next user inbound.
-   */
-  async setTyping(jid) {
-    if (!this.bot) return;
-    if (this.typingSuppressed.has(jid)) return;
-    try {
-      const numericId = jid.replace(/^tg:/, '');
-      await this.bot.api.sendChatAction(numericId, 'typing');
-    } catch (err) {
-      this.logger.error({ jid, err: err.message }, 'Failed to send Telegram typing indicator');
-    }
-  }
-
   async sendFile(jid, buffer, mime, fileName, caption) {
     if (!this.bot) {
       this.logger.warn('Telegram bot not initialized');
@@ -758,6 +720,19 @@ class TelegramChannel {
     }
   }
 
+  async setTyping(jid) {
+    if (!this.bot) return;
+    // Suppress polls between sendMessage and the next user inbound — see
+    // typingSuppressed comment on the field for why.
+    if (this.typingSuppressed.has(jid)) return;
+    try {
+      const numericId = jid.replace(/^tg:/, '');
+      await this.bot.api.sendChatAction(numericId, 'typing');
+    } catch (err) {
+      this.logger.error({ jid, err }, 'Failed to send Telegram typing indicator');
+    }
+  }
+
   async react(jid, messageId, emoji) {
     if (!this.bot) {
       this.logger.warn('Telegram bot not initialized');
@@ -765,8 +740,12 @@ class TelegramChannel {
     }
     try {
       const numericId = jid.replace(/^tg:/, '');
-      await this.bot.api.setMessageReaction(numericId, parseInt(messageId, 10), [{ type: 'emoji', emoji }]);
-      this.logger.info({ jid, messageId, emoji }, 'Telegram reaction sent');
+      // Empty emoji is the orchestrator's "clear prior reaction" signal —
+      // Telegram represents that as an empty reaction array, not an empty
+      // emoji string (which the API rejects with REACTION_INVALID).
+      const reaction = emoji ? [{ type: 'emoji', emoji }] : [];
+      await this.bot.api.setMessageReaction(numericId, parseInt(messageId, 10), reaction);
+      this.logger.info({ jid, messageId, emoji: emoji || '(cleared)' }, 'Telegram reaction sent');
     } catch (err) {
       this.logger.error({ jid, messageId, emoji, err }, 'Failed to send Telegram reaction');
     }
