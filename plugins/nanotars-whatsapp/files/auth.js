@@ -11,19 +11,41 @@
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
+import { createRequire } from 'module';
 import pino from 'pino';
 import qrcode from 'qrcode-terminal';
 import readline from 'readline';
 
+import QRCode from 'qrcode';
 import makeWASocket, {
   Browsers,
   DisconnectReason,
+  fetchLatestWaWebVersion,
   makeCacheableSignalKeyStore,
 } from '@whiskeysockets/baileys';
 import { useSqliteAuthState } from './sqlite-auth-state.js';
 
+// Mirror the runtime adapter's Baileys patches (index.js):
+//   1. Pin Baileys to WhatsApp's currently-advertised Web client version so
+//      WA doesn't reject the WS handshake with HTTP 405.
+//   2. Override getPlatformId — Baileys v6 sends charCode (49) instead of
+//      enum value (1), which makes pairing codes fail with "couldn't link
+//      device". Fixed in Baileys 7.x but not backported via release.
+const _require = createRequire(import.meta.url);
+const { proto } = _require('@whiskeysockets/baileys');
+try {
+  const _generics = _require('@whiskeysockets/baileys/lib/Utils/generics');
+  _generics.getPlatformId = (browser) => {
+    const platformType = proto.DeviceProps.PlatformType[browser.toUpperCase()];
+    return platformType ? platformType.toString() : '1';
+  };
+} catch {
+  // Fallback for older Baileys: pairing codes may misbehave but QR still works.
+}
+
 const AUTH_DIR = './data/channels/whatsapp/auth';
 const QR_FILE = './data/channels/whatsapp/qr-data.txt';
+const QR_PNG_FILE = './data/channels/whatsapp/qr-data.png';
 const STATUS_FILE = './data/channels/whatsapp/auth-status.txt';
 
 const logger = pino({ level: 'warn' });
@@ -190,7 +212,16 @@ async function connectSocket(phoneNumber) {
     process.exit(0);
   }
 
+  let waVersion;
+  try {
+    const { version } = await fetchLatestWaWebVersion({});
+    waVersion = version;
+  } catch (err) {
+    console.warn('Could not fetch latest WA Web version, using Baileys default:', err.message);
+  }
+
   const sock = makeWASocket({
+    ...(waVersion && { version: waVersion }),
     auth: {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, logger),
@@ -222,6 +253,12 @@ async function connectSocket(phoneNumber) {
 
     if (qr) {
       fs.writeFileSync(QR_FILE, qr);
+      // Also write a PNG so callers (Claude Code, /nanotars-setup) can render
+      // the QR inline via the multimodal Read tool. Keeps the text file too
+      // so the existing --serve HTTP fallback stays working.
+      QRCode.toFile(QR_PNG_FILE, qr, { width: 400, margin: 2 }).catch((err) => {
+        console.warn('Failed to write QR PNG:', err.message);
+      });
       notifyQRWatchers();
 
       if (serveQR) {
@@ -232,6 +269,7 @@ async function connectSocket(phoneNumber) {
         console.log('  2. Tap Settings → Linked Devices → Link a Device');
         console.log('  3. Point your camera at the QR code below\n');
         qrcode.generate(qr, { small: true });
+        console.log(`\nOr open ${QR_PNG_FILE} for a larger image.`);
       }
     }
 
@@ -259,6 +297,7 @@ async function connectSocket(phoneNumber) {
     if (connection === 'open') {
       fs.writeFileSync(STATUS_FILE, 'authenticated');
       try { fs.unlinkSync(QR_FILE); } catch {}
+      try { fs.unlinkSync(QR_PNG_FILE); } catch {}
       // Drain pending long-polls so any open browser tab redirects to
       // /authenticated. Defer server close so the redirect target can load.
       notifyQRWatchers();
@@ -279,6 +318,7 @@ async function authenticate() {
   fs.mkdirSync(AUTH_DIR, { recursive: true });
 
   try { fs.unlinkSync(QR_FILE); } catch {}
+  try { fs.unlinkSync(QR_PNG_FILE); } catch {}
   try { fs.unlinkSync(STATUS_FILE); } catch {}
 
   let phoneNumber = phoneArg;

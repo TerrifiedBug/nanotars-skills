@@ -57,157 +57,138 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
 
 ## Auth
 
-### Check Existing Auth
+### Status file conventions
 
-```bash
-[ -f data/channels/whatsapp/auth/creds.json ] && echo "AUTHENTICATED" || echo "NEEDS_AUTH"
-```
+The auth script writes its progress to `data/channels/whatsapp/auth-status.txt`:
+- `already_authenticated` — credentials exist; nothing to do
+- `pairing_code:<CODE>` — pairing code issued, waiting for the user to enter it
+- `authenticated` — paired successfully
+- `failed:<reason>` — auth failed (e.g. `failed:qr_timeout`, `failed:logged_out`)
 
-If `AUTHENTICATED`, tell the user:
+When a QR is needed, the script also writes:
+- `data/channels/whatsapp/qr-data.txt` — raw QR ref string (used by `--serve` HTTP fallback)
+- `data/channels/whatsapp/qr-data.png` — 400px PNG, **render this inline with the Read tool**
 
-> WhatsApp is already authenticated. Want to re-authenticate? (This will disconnect the current session.)
-
-If they say no, skip to "Register a Chat" below.
-
-### Authenticate
-
-**USER ACTION REQUIRED**
-
-The auth script supports two methods: QR code scanning and pairing code (phone number). Ask the user which they prefer.
-
-The auth script writes status to `data/channels/whatsapp/auth-status.txt`:
-- `already_authenticated` — credentials already exist
-- `pairing_code:<CODE>` — pairing code generated, waiting for user to enter it
-- `authenticated` — successfully authenticated
-- `failed:<reason>` — authentication failed
-
-The script automatically handles error 515 (stream error after pairing) by reconnecting — this is normal and expected during pairing code auth.
+Error 515 (stream error after pairing) is handled internally by automatic reconnect — normal during pairing-code auth.
 
 ### Ask the user which method to use
 
 > How would you like to authenticate WhatsApp?
 >
-> 1. **QR code in browser** (Recommended) — Opens a page with the QR code to scan
+> 1. **QR code** (Recommended) — I'll display a scannable QR right here in this session
 > 2. **Pairing code** — Enter a numeric code on your phone, no camera needed
-> 3. **QR code in terminal** — Run the auth command yourself in another terminal
 
-### Option A: QR Code in Browser (Recommended)
+### Option A: QR Code (recommended)
 
-Detect if headless or has a display:
+Clean any stale auth state and start the auth flow in the background:
 
 ```bash
-[ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ] || echo "HEADLESS"
+rm -rf data/channels/whatsapp/auth data/channels/whatsapp/qr-data.* data/channels/whatsapp/auth-status.txt
+nanotars auth whatsapp
 ```
 
-Clean any stale auth state and start auth in background:
+If `nanotars auth whatsapp` is not yet available on this install (older wrapper without the `auth` subcommand), fall back to the explicit invocation:
 
-**Headless (server/VPS)** — use `--serve` to start an HTTP server:
 ```bash
-rm -rf data/channels/whatsapp/auth data/channels/whatsapp/qr-data.txt data/channels/whatsapp/auth-status.txt
-node plugins/channels/whatsapp/auth.js --serve
-```
-
-**macOS/desktop** — use the file-based approach:
-```bash
-rm -rf data/channels/whatsapp/auth data/channels/whatsapp/qr-data.txt data/channels/whatsapp/auth-status.txt
 node plugins/channels/whatsapp/auth.js
 ```
 
-Run this with `run_in_background: true`.
+Run with `run_in_background: true`.
 
-Poll for QR data (up to 15 seconds):
-
-```bash
-for i in $(seq 1 15); do if [ -f data/channels/whatsapp/qr-data.txt ]; then echo "qr_ready"; exit 0; fi; STATUS=$(cat data/channels/whatsapp/auth-status.txt 2>/dev/null || echo "waiting"); if [ "$STATUS" = "already_authenticated" ]; then echo "$STATUS"; exit 0; fi; sleep 1; done; echo "timeout"
-```
-
-If `already_authenticated`, skip to the next step.
-
-**Headless:** Tell the user to open `http://SERVER_IP:8899` in their browser to see and scan the QR code.
-
-**macOS/desktop:** Generate the QR as SVG and inject it into the HTML template, then open it:
+Poll for the QR PNG (up to 20 seconds — `fetchLatestWaWebVersion` adds a few seconds before the QR appears):
 
 ```bash
-node -e "
-const QR = require('qrcode');
-const fs = require('fs');
-const qrData = fs.readFileSync('data/channels/whatsapp/qr-data.txt', 'utf8');
-QR.toString(qrData, { type: 'svg' }, (err, svg) => {
-  if (err) process.exit(1);
-  const template = fs.readFileSync('.claude/skills/nanotars-setup/qr-auth.html', 'utf8');
-  fs.writeFileSync('data/channels/whatsapp/qr-auth.html', template.replace('{{QR_SVG}}', svg));
-  console.log('done');
-});
-"
-open data/channels/whatsapp/qr-auth.html
+for i in $(seq 1 20); do
+  if [ -f data/channels/whatsapp/qr-data.png ]; then echo "qr_ready"; exit 0; fi
+  STATUS=$(cat data/channels/whatsapp/auth-status.txt 2>/dev/null || echo "waiting")
+  if [ "$STATUS" = "already_authenticated" ]; then echo "$STATUS"; exit 0; fi
+  if echo "$STATUS" | grep -q "^failed:"; then echo "$STATUS"; exit 0; fi
+  sleep 1
+done
+echo "timeout"
 ```
+
+If `already_authenticated`, skip to "Register a Chat".
+
+If `qr_ready`, render the QR inline by **using the Read tool** on `data/channels/whatsapp/qr-data.png`. Claude Code's Read tool is multimodal — the QR image will appear directly in this session for the user to scan.
 
 Tell the user:
-> The QR code is ready. It expires in about 60 seconds.
+> The QR code is ready (above). It expires in about 60 seconds.
 >
 > Scan it with WhatsApp: **Settings > Linked Devices > Link a Device**
 
 Then poll for completion (up to 120 seconds):
 
 ```bash
-for i in $(seq 1 60); do STATUS=$(cat data/channels/whatsapp/auth-status.txt 2>/dev/null || echo "waiting"); if [ "$STATUS" = "authenticated" ] || [ "$STATUS" = "already_authenticated" ]; then echo "$STATUS"; exit 0; elif echo "$STATUS" | grep -q "^failed:"; then echo "$STATUS"; exit 0; fi; sleep 2; done; echo "timeout"
+for i in $(seq 1 60); do
+  STATUS=$(cat data/channels/whatsapp/auth-status.txt 2>/dev/null || echo "waiting")
+  if [ "$STATUS" = "authenticated" ] || [ "$STATUS" = "already_authenticated" ]; then echo "$STATUS"; exit 0; fi
+  if echo "$STATUS" | grep -q "^failed:"; then echo "$STATUS"; exit 0; fi
+  sleep 2
+done
+echo "timeout"
 ```
 
-- If `authenticated`, success — clean up with `rm -f data/channels/whatsapp/qr-auth.html` and continue.
-- If `failed:qr_timeout`, offer to retry (re-run the auth and regenerate the HTML page).
-- If `failed:logged_out`, delete `data/channels/whatsapp/auth/` and retry.
+- `authenticated` → success, continue.
+- `failed:qr_timeout` → QR expired before scan, offer to retry.
+- `failed:logged_out` → delete `data/channels/whatsapp/auth/` and retry.
+- `failed:405` → indicates the WA Web version pin failed; the auth script already calls `fetchLatestWaWebVersion`, but if WA's CDN was unreachable Baileys' default is used. Wait a minute and retry, or check network egress to `web.whatsapp.com`.
 
 ### Option B: Pairing Code
 
-Ask the user for their phone number (with country code, no + or spaces, e.g. `14155551234`).
-
-Clean any stale auth state and start:
+Ask the user for their phone number (with country code, no `+` or spaces, e.g. `14155551234`).
 
 ```bash
-rm -rf data/channels/whatsapp/auth data/channels/whatsapp/qr-data.txt data/channels/whatsapp/auth-status.txt
+rm -rf data/channels/whatsapp/auth data/channels/whatsapp/qr-data.* data/channels/whatsapp/auth-status.txt
+nanotars auth whatsapp --pairing-code --phone PHONE_NUMBER
+```
+
+Fallback for installs without the `auth` subcommand:
+
+```bash
 node plugins/channels/whatsapp/auth.js --pairing-code --phone PHONE_NUMBER
 ```
 
-Run this with `run_in_background: true`.
+Run with `run_in_background: true`.
 
-Poll for the pairing code (up to 15 seconds):
+Poll for the pairing code (up to 20 seconds):
 
 ```bash
-for i in $(seq 1 15); do STATUS=$(cat data/channels/whatsapp/auth-status.txt 2>/dev/null || echo "waiting"); if echo "$STATUS" | grep -q "^pairing_code:"; then echo "$STATUS"; exit 0; elif [ "$STATUS" = "authenticated" ] || [ "$STATUS" = "already_authenticated" ]; then echo "$STATUS"; exit 0; elif echo "$STATUS" | grep -q "^failed:"; then echo "$STATUS"; exit 0; fi; sleep 1; done; echo "timeout"
+for i in $(seq 1 20); do
+  STATUS=$(cat data/channels/whatsapp/auth-status.txt 2>/dev/null || echo "waiting")
+  if echo "$STATUS" | grep -q "^pairing_code:"; then echo "$STATUS"; exit 0; fi
+  if [ "$STATUS" = "authenticated" ] || [ "$STATUS" = "already_authenticated" ]; then echo "$STATUS"; exit 0; fi
+  if echo "$STATUS" | grep -q "^failed:"; then echo "$STATUS"; exit 0; fi
+  sleep 1
+done
+echo "timeout"
 ```
 
-Extract the code from the status (e.g. `pairing_code:ABC12DEF` -> `ABC12DEF`) and tell the user:
+Extract the code from the status (e.g. `pairing_code:ABC12DEF` → `ABC12DEF`) and tell the user:
 
 > Your pairing code: **CODE_HERE**
 >
 > 1. Open WhatsApp on your phone
 > 2. Tap **Settings > Linked Devices > Link a Device**
 > 3. Tap **"Link with phone number instead"**
-> 4. Enter the code: **CODE_HERE**
+> 4. Enter the code: **CODE_HERE** (you have ~60 seconds)
 
-Then poll for completion (up to 120 seconds):
+Then poll for completion (same loop as Option A's completion poll above).
+
+- `authenticated` → success, continue.
+- `failed:logged_out` → delete `data/channels/whatsapp/auth/` and retry.
+- `failed:515` or timeout → the 515 auto-reconnect should handle this; if it persists, temporarily stop other WhatsApp-linked apps on the same device.
+
+### Headless / external-device fallback (`--serve`)
+
+If the user wants to scan from a different device than the one running the agent, the auth script can serve the QR as a webpage:
 
 ```bash
-for i in $(seq 1 60); do STATUS=$(cat data/channels/whatsapp/auth-status.txt 2>/dev/null || echo "waiting"); if [ "$STATUS" = "authenticated" ] || [ "$STATUS" = "already_authenticated" ]; then echo "$STATUS"; exit 0; elif echo "$STATUS" | grep -q "^failed:"; then echo "$STATUS"; exit 0; fi; sleep 2; done; echo "timeout"
+nanotars auth whatsapp --serve
+# or: node plugins/channels/whatsapp/auth.js --serve
 ```
 
-- If `authenticated` or `already_authenticated`, success — continue to next step.
-- If `failed:logged_out`, delete `data/channels/whatsapp/auth/` and retry.
-- If `failed:515` or timeout, the 515 reconnect should handle this automatically. If it persists, the user may need to temporarily stop other WhatsApp-connected apps on the same device.
-
-### Option C: QR Code in Terminal
-
-Tell the user to run the auth command in another terminal window:
-
-> Open another terminal and run:
-> ```
-> cd PROJECT_PATH && node plugins/channels/whatsapp/auth.js
-> ```
-> Scan the QR code that appears, then let me know when it says "Successfully authenticated".
-
-Replace `PROJECT_PATH` with the actual project path (use `pwd`).
-
-Wait for the user to confirm authentication succeeded, then continue to the next step.
+Tell the user to open `http://SERVER_IP:8899` in a browser. The page long-polls for QR rotation automatically.
 
 ## Agent Teams
 
@@ -233,19 +214,11 @@ After authentication, the main chat is registered by `/nanotars-setup` (section 
 
 ### Finding Groups
 
-Start the app briefly to sync group metadata, then query:
-
-```bash
-sqlite3 store/messages.db "SELECT jid, name FROM chats WHERE jid LIKE '%@g.us' AND jid != '__group_sync__' ORDER BY last_message_time DESC LIMIT 20"
-```
+Use `/nanotars-add-group` after auth — it lists available WhatsApp groups via the live Baileys connection (`sock.groupFetchAllParticipating()`) and walks through registration. To inspect already-registered groups, run `/nanotars-groups`.
 
 ### Finding Personal Chat JID
 
-The "Message Yourself" JID is the bot's own phone number. Check the auth state:
-
-```bash
-node -e "const c = JSON.parse(require('fs').readFileSync('data/channels/whatsapp/auth/creds.json','utf8')); const id = c.me?.id || ''; console.log(id.split(':')[0] + '@s.whatsapp.net')"
-```
+The "Message Yourself" JID is the bot's own phone number. After auth completes, the plugin's runtime adapter logs the bot's user id; check `tail logs/nanotars.log | grep -i 'connected to whatsapp'`. The JID format is `{phone}@s.whatsapp.net`.
 
 ## Verify
 
@@ -254,21 +227,20 @@ node -e "const c = JSON.parse(require('fs').readFileSync('data/channels/whatsapp
 
 ## Troubleshooting
 
-- **Error 515 "restart required"**: This is normal during initial pairing — the auth script auto-reconnects. If it persists, temporarily stop other WhatsApp-connected apps on the same device. Wait 30 seconds.
-- **QR code too wide**: Use `--serve` flag to get an HTTP-served QR at `http://SERVER_IP:8899`.
-- **Messages sent but not received (DMs)**: WhatsApp may use LID (Linked Identity) JIDs for DMs instead of phone numbers. Check logs for `Translated LID to phone JID`. The WhatsApp plugin handles this automatically via `translateJid`.
-- **Messages not received**: Verify the JID is registered: `sqlite3 store/messages.db "SELECT mg.platform_id, ag.folder, mg.channel_type FROM messaging_groups mg JOIN messaging_group_agents mga ON mga.messaging_group_id = mg.id JOIN agent_groups ag ON ag.id = mga.agent_group_id WHERE mg.channel_type = 'whatsapp'"`
-- **WhatsApp disconnected**: The service will show a notification (macOS) or log an error. Run `node plugins/channels/whatsapp/auth.js` to re-authenticate, then restart the service.
+- **Error 405 / "Connection failed" before QR appears**: The auth script's WA Web version pin (`fetchLatestWaWebVersion`) couldn't reach `web.whatsapp.com`. Check network egress, wait a minute, retry.
+- **Error 515 "restart required"**: Normal during initial pairing — the auth script auto-reconnects. If it persists, temporarily stop other WhatsApp-connected apps on the same device. Wait 30 seconds.
+- **QR code too wide for terminal**: Use the inline-PNG flow (Option A above — Read the PNG instead of the terminal output) or `--serve` for an HTTP-served QR at `http://SERVER_IP:8899`.
+- **Messages sent but not received (DMs)**: WhatsApp may use LID (Linked Identity) JIDs for DMs instead of phone numbers. Check logs for `Translated LID to phone JID`. The plugin handles this automatically via `translateJid`.
+- **Messages not received from a registered group**: Run `/nanotars-groups` to confirm the group is registered and active. Don't reach into the database directly — schema migrations have moved registered-group state into the entity model (`agent_groups` / `messaging_groups` / `messaging_group_agents`).
+- **WhatsApp disconnected after working previously**: The service logs an error and exits. Run `nanotars auth whatsapp` (or `node plugins/channels/whatsapp/auth.js`) to re-authenticate, then `nanotars restart`.
 
 ## Uninstall
 
-1. Stop the NanoClaw service
-2. Remove the plugin directory: `rm -rf plugins/channels/whatsapp/`
-3. Remove WhatsApp auth data: `rm -rf data/channels/whatsapp/`
-4. Remove channel registrations (wirings + chats; agent_groups rows are left alone since they may be wired to other channels):
-   ```bash
-   sqlite3 store/messages.db "DELETE FROM messaging_group_agents WHERE messaging_group_id IN (SELECT id FROM messaging_groups WHERE channel_type = 'whatsapp');"
-   sqlite3 store/messages.db "DELETE FROM messaging_groups WHERE channel_type = 'whatsapp';"
-   ```
-5. Rebuild and restart NanoClaw
-6. Group folders under `groups/` are preserved (not automatically deleted)
+Use `/nanotars-remove-plugin` for a guided removal — it stops the service, removes the plugin directory, cleans up channel data, and removes registered-group entries via the proper IPC primitives. Manual steps if needed:
+
+1. `nanotars stop`
+2. `rm -rf plugins/channels/whatsapp/`
+3. `rm -rf data/channels/whatsapp/`
+4. Removal of registered-group entries → use `/nanotars-remove-plugin` or the operator delete-group flow (do not reach into the SQLite schema directly).
+5. `nanotars restart`
+6. Group folders under `groups/` are preserved.
