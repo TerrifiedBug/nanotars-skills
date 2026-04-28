@@ -85,25 +85,17 @@ Wait for the user to provide the bot token.
 
 ## Register a Chat
 
-The easiest way to get a channel ID is dynamic discovery:
+Use the cross-channel pairing-code flow (same primitive that backs WhatsApp + Telegram):
 
-1. Send a message to the bot (DM or server text channel)
-2. Query the database:
-   ```bash
-   sqlite3 store/messages.db "SELECT jid, name FROM chats WHERE jid LIKE 'dc:%' ORDER BY last_message_time DESC LIMIT 10"
-   ```
+1. From your main chat (any registered channel), type `/register-group <folder>`. The host emits a 4-digit code.
+2. From the Discord chat you want to register, send the 4-digit code as a normal message. The host's inbound interceptor consumes the code and atomically wires the entity-model rows.
 
-**Fallback (manual method):** If you need the channel ID before the bot is running:
-   - In Discord, go to **User Settings > Advanced > Developer Mode** (enable it)
-   - Right-click the text channel (or DM conversation) you want to register
-   - Click **Copy Channel ID**
-   - Format as `dc:CHANNEL_ID` when registering
-3. Register the main group (there can only be one) via `/nanotars-setup`. Add additional groups with `/nanotars-add-group`.
+**Manually finding a channel ID** (only if needed for documentation / scripted setup):
+- Discord **User Settings > Advanced > Developer Mode** → enable
+- Right-click the channel/DM → **Copy Channel ID**
+- Format as `dc:CHANNEL_ID`
 
-4. Restart to pick up the registration:
-   ```bash
-   nanotars restart 2>/dev/null
-   ```
+For the first-ever main chat (when no other channel is registered), use `nanotars pair-main` from the install host instead — it issues a code that the channel plugin's inbound interceptor will consume to bootstrap the main group.
 
 ## Verify
 
@@ -114,32 +106,18 @@ The easiest way to get a channel ID is dynamic discovery:
 
 - **Bot not connecting**: Check `DISCORD_BOT_TOKEN` in `.env`
 - **Bot online but not reading messages**: Enable **Message Content Intent** in Discord Developer Portal > Bot > Privileged Gateway Intents
-- **Messages not received**: Verify registration: `sqlite3 store/messages.db "SELECT mg.platform_id, ag.folder, mg.channel_type FROM messaging_groups mg JOIN messaging_group_agents mga ON mga.messaging_group_id = mg.id JOIN agent_groups ag ON ag.id = mga.agent_group_id WHERE mg.channel_type = 'discord'"`
+- **Messages not received**: Run `/list-groups` from your main chat to confirm the Discord chat is registered. Don't reach into the SQLite schema directly — the entity-model migration will silently break inline SQL.
 - **No response in group channel**: Check trigger pattern matches or set `requiresTrigger: false`
 - **Bot can't send messages**: Ensure bot has `Send Messages` permission in the channel
 
 ## Uninstall
 
-To remove the Discord channel:
+Use `/nanotars-remove-plugin` for a guided removal — it stops the service, removes the plugin directory, cleans up channel data, and removes registered-group entries via the proper IPC primitives. Manual steps if needed:
 
-1. **Stop NanoTars**
-
-2. **Cancel affected tasks** (if any scheduled tasks target Discord groups):
-   ```bash
-   sqlite3 store/messages.db "UPDATE scheduled_tasks SET status = 'completed' WHERE chat_jid IN (SELECT platform_id FROM messaging_groups WHERE channel_type = 'discord');"
-   ```
-
-3. **Remove channel registrations** (wirings + chats; agent_groups rows left alone since they may be wired to other channels):
-   ```bash
-   sqlite3 store/messages.db "DELETE FROM messaging_group_agents WHERE messaging_group_id IN (SELECT id FROM messaging_groups WHERE channel_type = 'discord');"
-   sqlite3 store/messages.db "DELETE FROM messaging_groups WHERE channel_type = 'discord';"
-   ```
-
-4. **Remove the plugin directory:**
-   ```bash
-   rm -rf plugins/channels/discord/
-   ```
-
-5. **Remove `DISCORD_BOT_TOKEN` from `.env`**
+1. `nanotars stop`
+2. From your main chat (before stopping), run `/delete-group <folder>` for each Discord-wired group you want to remove. Skip this if you want the agent_group rows preserved for re-wiring to a different channel.
+3. `rm -rf plugins/channels/discord/`
+4. Remove `DISCORD_BOT_TOKEN` from `.env`
+5. `nanotars restart`
 
 6. **Restart NanoTars** — group folders and message history are preserved.
