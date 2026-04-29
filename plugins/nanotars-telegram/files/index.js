@@ -383,11 +383,13 @@ class TelegramChannel {
               : ctx.from?.first_name || ctx.from?.username || platformId;
           const senderForPair =
             ctx.from?.username || ctx.from?.first_name || ctx.from?.id?.toString() || null;
+          const senderUserId = ctx.from?.id != null ? `telegram:${ctx.from.id}` : null;
           try {
             const result = await this.config.consumePendingCode({
               code: candidate,
               channel: 'telegram',
               sender: senderForPair,
+              senderUserId,
               platformId,
               isGroup,
               name: chatNameForPair,

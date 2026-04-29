@@ -346,13 +346,16 @@ class WhatsAppChannel {
             const isGroup = chatJid.endsWith('@g.us');
             const rawSender = msg.key.participant || msg.key.remoteJid || '';
             const senderJid = await this.translateJid(rawSender);
-            const senderForPair = msg.pushName || senderJid.split('@')[0] || null;
+            const senderHandle = senderJid.split('@')[0] || null;
+            const senderForPair = msg.pushName || senderHandle || null;
+            const senderUserId = senderHandle ? `whatsapp:${senderHandle}` : null;
             const chatNameForPair = msg.pushName || chatJid;
             try {
               const result = await this.config.consumePendingCode({
                 code: candidate,
                 channel: 'whatsapp',
                 sender: senderForPair,
+                senderUserId,
                 platformId: chatJid,
                 isGroup,
                 name: chatNameForPair,
