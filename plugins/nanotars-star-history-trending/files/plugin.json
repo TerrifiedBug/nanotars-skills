@@ -1,0 +1,12 @@
+{
+  "name": "star-history-trending",
+  "description": "Scan star-history.com weekly trending repos, filter for relevant tools/agents, and present a curated brief.",
+  "version": "1.0.0",
+  "containerEnvVars": [],
+  "channels": [
+    "*"
+  ],
+  "groups": [
+    "*"
+  ]
+}

@@ -62,7 +62,11 @@ echo "OPENAI_API_KEY=THE_KEY_HERE" >> .env
 cp -r ${CLAUDE_PLUGIN_ROOT}/files/ plugins/transcription/
 ```
 
-The plugin loader handles `npm install` automatically on next startup (`dependencies: true` in manifest).
+The plugin has `"dependencies": true` in its manifest, so the plugin-loader will run `npm install` automatically on next startup. Installing now is faster and surfaces install errors immediately:
+
+```bash
+cd plugins/transcription && npm install && cd -
+```
 
 ## Step 5: Plugin Configuration
 

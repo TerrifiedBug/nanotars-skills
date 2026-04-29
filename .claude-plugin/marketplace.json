@@ -156,6 +156,13 @@
       "category": "channels"
     },
     {
+      "name": "nanotars-star-history-trending",
+      "source": "./plugins/nanotars-star-history-trending",
+      "description": "Scan star-history.com weekly trending repos via agent-browser, filter for relevant tools/agents, and present a curated brief. Triggers on \"trending repos\", \"star history\", \"new tools\".",
+      "version": "1.0.0",
+      "category": "monitoring"
+    },
+    {
       "name": "nanotars-stocks",
       "source": "./plugins/nanotars-stocks",
       "description": "Add stock price and financial data lookups via Yahoo Finance. Triggers on stock price questions, ticker lookups, market data requests.",
@@ -193,7 +200,7 @@
     {
       "name": "nanotars-weather",
       "source": "./plugins/nanotars-weather",
-      "description": "Add weather lookup capability to Nanotars agents. Uses free wttr.in and Open-Meteo APIs \u2014 no API key needed. Triggers on \"add weather\", \"weather setup\", \"weather skill\".",
+      "description": "Add weather lookup capability to Nanotars agents. Uses free wttr.in and Open-Meteo APIs — no API key needed. Triggers on \"add weather\", \"weather setup\", \"weather skill\".",
       "version": "1.0.0",
       "category": "utilities"
     },
