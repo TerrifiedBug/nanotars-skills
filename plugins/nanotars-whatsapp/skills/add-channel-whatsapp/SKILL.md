@@ -45,7 +45,24 @@ If any check fails, tell the user to run `/nanotars-setup` first and stop.
    cd plugins/channels/whatsapp && npm install && cd -
    ```
 
-4. Rebuild and restart:
+4. **Identify the assistant's WhatsApp identity.** Ask the user:
+
+   > Does the assistant use its own dedicated WhatsApp phone number, or does it share your personal number?
+   >
+   > - **Own dedicated number** — the assistant runs on a separate WhatsApp account. Replies appear as plain messages; WhatsApp's own sender display tells you who's speaking.
+   > - **Shared personal number** — Baileys shares your phone number with you. Replies are prefixed with `${ASSISTANT_NAME}:` so you can tell auto-replies from manual messages you sent.
+
+   Write the answer to `.env` (`true` for own number, `false` for shared):
+   ```bash
+   # Replace VALUE with true or false based on the user's answer
+   grep -q "^ASSISTANT_HAS_OWN_NUMBER=" .env 2>/dev/null \
+     && sed -i "s/^ASSISTANT_HAS_OWN_NUMBER=.*/ASSISTANT_HAS_OWN_NUMBER=VALUE/" .env \
+     || echo "ASSISTANT_HAS_OWN_NUMBER=VALUE" >> .env
+   ```
+
+   This controls both outbound prefixing and how the bot detects its own messages on inbound.
+
+5. Rebuild and restart:
    ```bash
    npm run build
    ```
