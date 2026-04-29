@@ -67,16 +67,13 @@ Show the user which groups already have webhook endpoints (group name + creation
 
 ### 4. Choose target group
 
-Query the database for registered groups and show the user the list. Ask which group should receive webhook events.
+List registered groups by reading the `groups/` directory. Each subfolder is a registered group. Show the user the list and ask which group should receive webhook events.
 
 ```bash
-sqlite3 store/messages.db "
-  SELECT mg.platform_id AS jid, COALESCE(mg.name, ag.name) AS name, ag.folder
-  FROM agent_groups ag
-  LEFT JOIN messaging_group_agents mga ON mga.agent_group_id = ag.id
-  LEFT JOIN messaging_groups mg ON mg.id = mga.messaging_group_id
-"
+ls -1d groups/*/ 2>/dev/null | xargs -n1 basename
 ```
+
+For richer detail (channel mappings, agent names) ask the user to run `/nanotars-groups` in another session.
 
 ### 5. Generate route and save
 
@@ -221,9 +218,12 @@ curl -s -X POST http://localhost:3457/webhook/GROUP_FOLDER \
   -d '{"source": "test", "text": "This is a test webhook message. Reply with OK if you received it."}' | jq .
 ```
 
-### Verify in database:
+### Verify the message landed:
+
+The agent should respond in the target group's chat within a few seconds. If it doesn't, tail service logs to confirm the webhook was received and dispatched:
+
 ```bash
-sqlite3 store/messages.db "SELECT id, sender_name, content, timestamp FROM messages WHERE id LIKE 'wh-%' ORDER BY timestamp DESC LIMIT 5"
+nanotars logs --tail 30
 ```
 
 ## Usage Examples
