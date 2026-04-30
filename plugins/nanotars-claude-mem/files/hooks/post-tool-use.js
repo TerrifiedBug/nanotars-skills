@@ -1,9 +1,27 @@
-// Claude-mem session hooks: mirrors the official OpenClaw integration pattern.
-// Registers for multiple SDK events to manage the full session lifecycle:
-//   UserPromptSubmit → /api/sessions/init (create/continue session with prompt)
-//   PostToolUse      → /api/sessions/observations (queue tool use for AI processing)
-//   Stop             → /api/sessions/summarize + /api/sessions/complete
-//   PreCompact       → /api/sessions/init (re-init after context compaction)
+// Claude-mem session hooks. Ported from the upstream openclaw integration
+// (https://github.com/thedotmack/claude-mem/tree/main/openclaw) and adapted
+// to the Claude Agent SDK hook surface used by nanotars containers.
+//
+// Lifecycle:
+//   getSystemPromptAddition → /api/context/inject (appended to system prompt
+//                              at session-construction time; the SDK does not
+//                              implement hookSpecificOutput.additionalContext
+//                              in headless mode, so we use the supported
+//                              systemPrompt.append injection point instead)
+//   UserPromptSubmit         → /api/sessions/init   (dedup-guarded)
+//   PostToolUse              → /api/sessions/observations (memory_* skipped, truncated)
+//   Stop                     → /api/sessions/summarize (worker self-completes; no /complete)
+//
+// PreCompact is intentionally NOT hooked — re-init creates duplicate prompt
+// records. The next session will pull a fresh /api/context/inject anyway.
+
+const PROJECT = 'nanotars';
+const CONTEXT_CACHE_TTL_MS = 5 * 60 * 1000;
+const PROMPT_INIT_DEDUP_MS = 30_000;
+const MAX_TOOL_RESPONSE_LENGTH = 1000;
+
+const recentPromptInits = new Map();
+const contextCache = new Map();
 
 function log(msg) {
   console.error(`[agent-runner] [claude-mem] ${msg}`);
@@ -24,73 +42,137 @@ function fireAndForget(url, path, body) {
   );
 }
 
+function stringifyToolResponse(value) {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function gcDedupMap(now) {
+  for (const [k, t] of recentPromptInits) {
+    if (now - t > 5 * PROMPT_INIT_DEDUP_MS) recentPromptInits.delete(k);
+  }
+}
+
 export function register(ctx) {
   const url = ctx.env.CLAUDE_MEM_URL;
   if (!url) return {};
 
-  const PROJECT = `nanoclaw-${ctx.groupFolder || 'main'}`;
-
   log(`Session hooks enabled: ${url}`);
 
   return {
-    // ── Session init: capture user prompt and create/continue session ──
+    // Init session in the worker so observations are accepted.
+    // Dedup-guard prevents duplicate prompt records when the same prompt
+    // re-fires within 30s (e.g. SDK retry, IPC pipe-in within the same turn).
     UserPromptSubmit: [{
       hooks: [async (input) => {
-        log(`Session init: session=${input.session_id}`);
+        const promptText = input.prompt || '';
+        const sessionId = input.session_id;
+        const dedupKey = `${sessionId}|${promptText.slice(0, 64)}`;
+        const now = Date.now();
+
+        const lastFired = recentPromptInits.get(dedupKey);
+        if (lastFired && now - lastFired < PROMPT_INIT_DEDUP_MS) {
+          log(`Skipping duplicate prompt init: session=${sessionId}`);
+          return {};
+        }
+        recentPromptInits.set(dedupKey, now);
+        gcDedupMap(now);
+
+        log(`Session init: session=${sessionId}`);
         fireAndForget(url, '/api/sessions/init', {
-          contentSessionId: input.session_id,
+          contentSessionId: sessionId,
           project: PROJECT,
-          prompt: input.prompt || '',
+          prompt: promptText,
         });
         return {};
       }],
     }],
 
-    // ── Tool observations: queue for AI processing ──
+    // Persist tool observations. Skip memory_* tools (recursive observation
+    // loop), drop observations with empty cwd (worker rejects them), and
+    // truncate oversized tool_response payloads.
     PostToolUse: [{
       hooks: [async (input) => {
-        log(`PostToolUse: tool=${input.tool_name} session=${input.session_id}`);
+        const toolName = input.tool_name;
+        if (!toolName) return {};
+        if (toolName.startsWith('memory_')) return {};
+
+        const cwd = input.cwd || '';
+        if (!cwd) {
+          log(`Skipping observation (empty cwd): tool=${toolName}`);
+          return {};
+        }
+
+        let toolResponseText = stringifyToolResponse(input.tool_response);
+        if (toolResponseText.length > MAX_TOOL_RESPONSE_LENGTH) {
+          toolResponseText = toolResponseText.slice(0, MAX_TOOL_RESPONSE_LENGTH);
+        }
+
+        log(`PostToolUse: tool=${toolName} session=${input.session_id}`);
         fireAndForget(url, '/api/sessions/observations', {
           contentSessionId: input.session_id,
-          tool_name: input.tool_name,
+          tool_name: toolName,
           tool_input: input.tool_input,
-          tool_response: input.tool_response,
-          cwd: input.cwd || '',
+          tool_response: toolResponseText,
+          cwd,
         });
         return {};
       }],
     }],
 
-    // ── Stop: summarize then complete ──
+    // Summarize on stop. Worker self-completes the session when its SDK-agent
+    // generator drains; no explicit /api/sessions/complete call (404 in
+    // upstream worker). Awaited so in-flight observations have time to flush.
     Stop: [{
       hooks: [async (input) => {
         log(`Stop: session=${input.session_id}`);
-        // Await summarize so in-flight observations have time to arrive
         try {
           const res = await post(url, '/api/sessions/summarize', {
             contentSessionId: input.session_id,
             last_assistant_message: '',
           });
           log(`/api/sessions/summarize ${res.status}`);
-        } catch { /* worker unreachable */ }
-        fireAndForget(url, '/api/sessions/complete', {
-          contentSessionId: input.session_id,
-        });
-        return {};
-      }],
-    }],
-
-    // ── PreCompact: re-init session after context compaction ──
-    PreCompact: [{
-      hooks: [async (input) => {
-        log(`PreCompact re-init: session=${input.session_id}`);
-        fireAndForget(url, '/api/sessions/init', {
-          contentSessionId: input.session_id,
-          project: PROJECT,
-          prompt: '',
-        });
+        } catch {
+          // Worker unreachable — observations still flushed via earlier POSTs.
+        }
         return {};
       }],
     }],
   };
+}
+
+// Fetched once per session (with 5-min in-process cache across sessions if the
+// container is reused). Result is appended to the SDK's systemPrompt by the
+// agent-runner — see PluginHookModule.getSystemPromptAddition.
+export async function getSystemPromptAddition(ctx) {
+  const url = ctx.env.CLAUDE_MEM_URL;
+  if (!url) return null;
+
+  const now = Date.now();
+  const cached = contextCache.get(PROJECT);
+  if (cached && now - cached.fetchedAt < CONTEXT_CACHE_TTL_MS) {
+    return cached.text;
+  }
+
+  try {
+    const res = await fetch(
+      `${url}/api/context/inject?projects=${encodeURIComponent(PROJECT)}`,
+    );
+    if (!res.ok) {
+      log(`/api/context/inject ${res.status}`);
+      return null;
+    }
+    const text = (await res.text()).trim();
+    if (!text) return null;
+    contextCache.set(PROJECT, { text, fetchedAt: now });
+    log(`Context fetched for system prompt: ${text.length} chars`);
+    return text;
+  } catch {
+    return null;
+  }
 }
