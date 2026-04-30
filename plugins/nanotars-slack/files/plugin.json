@@ -5,6 +5,10 @@
     "onChannel"
   ],
   "channelPlugin": true,
+  "containerEnvVars": [
+    "SLACK_BOT_TOKEN",
+    "SLACK_APP_TOKEN"
+  ],
   "dependencies": true,
   "version": "1.0.0",
   "channels": [
