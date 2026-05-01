@@ -98,12 +98,20 @@ Tell the user:
 Wait for confirmation, then re-auth with both scopes. gog stores one token per account — re-authing with expanded scopes replaces the old token. Google will prompt the user to grant the additional Gmail permission:
 
 ```bash
-GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2) gog auth login --services gmail,calendar
+if [ -x plugins/calendar/scripts/gog-reauth.sh ]; then
+  ./plugins/calendar/scripts/gog-reauth.sh --services calendar,gmail
+else
+  GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2) gog auth login --services gmail,calendar
+fi
 ```
 
-On a headless server (no browser):
+On a headless server (no browser), prefer the calendar helper if it is installed:
 ```bash
-GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2) gog auth login --services gmail,calendar --manual
+if [ -x plugins/calendar/scripts/gog-reauth.sh ]; then
+  ./plugins/calendar/scripts/gog-reauth.sh --services calendar,gmail
+else
+  GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2) gog auth login --services gmail,calendar --manual
+fi
 ```
 
 This prints an OAuth URL. Tell the user to open it in any browser, authorize the expanded permissions, then paste back the redirect URL.
@@ -123,7 +131,7 @@ GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2) gog gmail
 
 ```bash
 mkdir -p data/gogcli
-cp -r ~/.config/gogcli/* data/gogcli/
+cp -a ~/.config/gogcli/. data/gogcli/
 chown -R 1000:1000 data/gogcli
 ```
 
@@ -224,7 +232,7 @@ Send a message in your channel like:
 - **"invalid_grant" / token expired**: Re-run Step 3 to re-authorize, then Step 4 to sync credentials
 - **gog works on host but not in container**: Credentials not synced -- run Step 4 again
 - **"GOG_KEYRING_PASSWORD not set"**: Check it's in `.env` and the plugin's `containerEnvVars` includes it
-- **Gmail commands fail but Calendar works**: Gmail scopes not authorized -- re-run Step 3 with `--services gmail,calendar`
+- **Gmail commands fail but Calendar works**: Gmail scopes not authorized -- re-run Step 3 with `--services calendar,gmail`
 
 ## Existing Installation (Per-Group Credentials)
 

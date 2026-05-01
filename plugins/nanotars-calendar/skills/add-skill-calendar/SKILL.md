@@ -51,28 +51,34 @@ Import OAuth credentials (user provides their client_secret.json path):
 gog auth credentials /path/to/client_secret.json
 ```
 
-OAuth login (include gmail if the Gmail plugin is already installed to preserve its scopes):
+Configure the keyring password and Google account before OAuth:
+```bash
+grep "^GOG_KEYRING_PASSWORD=" .env 2>/dev/null && echo "ALREADY_SET" || echo 'GOG_KEYRING_PASSWORD=THEIR_PASSWORD_HERE' >> .env
+grep "^GOG_ACCOUNT=" .env 2>/dev/null && echo "ALREADY_SET" || echo 'GOG_ACCOUNT=user@gmail.com' >> .env
+```
+
+Install the headless re-auth helper before starting OAuth:
+```bash
+mkdir -p plugins/calendar/scripts
+cp ${CLAUDE_PLUGIN_ROOT}/files/scripts/gog-reauth.sh plugins/calendar/scripts/ && chmod +x plugins/calendar/scripts/gog-reauth.sh
+```
+
+OAuth login. On a headless server, use the helper script because it keeps the
+same `gog auth` process alive while the user completes browser authorization:
 ```bash
 if [ -d plugins/gmail ]; then
-  GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2) gog auth login --services calendar,gmail
+  ./plugins/calendar/scripts/gog-reauth.sh --services calendar,gmail
 else
-  GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2) gog auth login --services calendar
+  ./plugins/calendar/scripts/gog-reauth.sh --services calendar
 fi
 ```
 
-On a headless server, add `--manual` to the gog command above.
-
 Verify: `GOG_KEYRING_PASSWORD=$(grep GOG_KEYRING_PASSWORD .env | cut -d'=' -f2) gog calendar calendars`
-
-Configure environment:
-```bash
-grep "^GOG_KEYRING_PASSWORD=" .env 2>/dev/null && echo "ALREADY_SET" || echo 'GOG_KEYRING_PASSWORD=THEIR_PASSWORD_HERE' >> .env
-```
 
 Copy gog config for containers:
 ```bash
 mkdir -p data/gogcli
-cp -r ~/.config/gogcli/* data/gogcli/
+cp -a ~/.config/gogcli/. data/gogcli/
 chown -R 1000:1000 data/gogcli
 ```
 
@@ -241,6 +247,9 @@ Google OAuth tokens expire periodically. When the agent reports `"invalid_grant"
 
 # Reauth a specific account
 ./plugins/calendar/scripts/gog-reauth.sh user@gmail.com
+
+# Reauth with Calendar and Gmail scopes
+./plugins/calendar/scripts/gog-reauth.sh user@gmail.com --services calendar,gmail
 ```
 
 The script automatically:
@@ -251,36 +260,39 @@ The script automatically:
 5. Uses the `GOG_KEYRING_PASSWORD` from the same env file as the account
 6. Includes gmail scopes if the gmail plugin is installed
 7. Runs `gog auth` via expect (handles the CSRF state matching that breaks with separate invocations)
-8. Prompts for the redirect URL interactively
+8. Prompts for the redirect URL interactively, or waits for `--redirect-file`
 9. Syncs credentials to `data/gogcli/` for container access
 10. Verifies each account after reauth
 
 ### From Claude Code (non-interactive)
 
-Since Claude Code can't use `read`, run the script in the background and feed the redirect URL via file:
+Since Claude Code cannot answer an interactive `read`, run the script with a
+redirect file. The helper writes the exact OAuth URL emitted by the live
+`gog auth add` process, then waits for a matching redirect URL in the file:
 
-The approach uses `plugins/calendar/scripts/gog-reauth.sh`'s expect script but non-interactively:
+```bash
+rm -f /tmp/gog-oauth-url.txt /tmp/gog-redirect-url.txt
+./plugins/calendar/scripts/gog-reauth.sh user@gmail.com \
+  --services calendar,gmail \
+  --oauth-url-file /tmp/gog-oauth-url.txt \
+  --redirect-file /tmp/gog-redirect-url.txt
+```
 
-1. First, discover which account needs reauth. If the agent reported the error, check which group it was for and find the `GOG_ACCOUNT` in that group's `.env`.
+In another terminal or agent step:
 
-2. Write and run the expect script from `plugins/calendar/scripts/gog-reauth.sh` (the section between `EXPECT_EOF` markers) in the background, passing `$EMAIL`, `$SERVICES`, `$STATE_FILE`, and `$REDIRECT_FILE`.
+1. Wait until `/tmp/gog-oauth-url.txt` exists.
+2. Send the URL contents to the user.
+3. After the user authorizes in a browser, write the pasted redirect URL to `/tmp/gog-redirect-url.txt`.
 
-3. Wait for `$STATE_FILE` to be written (contains the CSRF state token).
-
-4. Show the user the OAuth URL containing the state from `$STATE_FILE`.
-
-5. User authorizes and pastes redirect URL.
-
-6. Write the redirect URL to `$REDIRECT_FILE` — the expect process picks it up and completes auth.
-
-7. Sync: `cp -r ~/.config/gogcli/* data/gogcli/ && chown -R 1000:1000 data/gogcli/`
+The script completes authentication, syncs `~/.config/gogcli` into `data/gogcli/`,
+and verifies the account.
 
 IMPORTANT: Each `gog auth` invocation generates a unique CSRF state token. The redirect URL from one invocation will NOT work with another — the state must match. This is why the expect approach keeps the same process alive throughout.
 
 ## Troubleshooting
 
 - **gog "invalid_grant" / "Token has been expired or revoked"**: Follow the "Refresh Google OAuth Token" section above.
-- **gog works on host but not in container**: Credentials not synced — run `cp -r ~/.config/gogcli/* data/gogcli/ && chown -R 1000:1000 data/gogcli/`.
+- **gog works on host but not in container**: Credentials not synced — run `cp -a ~/.config/gogcli/. data/gogcli/ && chown -R 1000:1000 data/gogcli/`.
 - **gog config not found in container**: Ensure `data/gogcli/` exists and is chowned to 1000:1000.
 - **iCloud "401 Unauthorized"**: Use an app-specific password, not your Apple ID password.
 - **"CALDAV_ACCOUNTS not defined"**: Check it's in both `.env` and `plugin.json` containerEnvVars.
