@@ -12,25 +12,65 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Slice 7: module-level state for approval-card adapters. The deliverer +
-// editor closures capture these refs; the class instance updates them on each
-// connect() so reconnects don't require re-registering (registry would warn
-// on overwrite). Telegram bot lives outside the class for this reason — bot
-// instance changes across reconnects, but the registered closure stays stable.
-let currentBot = null;
-let currentLogger = null;
-let approvalAdaptersRegistered = false;
+function readLocalManifest() {
+  try {
+    return JSON.parse(fs.readFileSync(new URL('./plugin.json', import.meta.url), 'utf-8'));
+  } catch {
+    return {};
+  }
+}
 
-function ensureApprovalAdaptersRegistered() {
-  if (approvalAdaptersRegistered) return;
-  approvalAdaptersRegistered = true;
+function normalizeChannelName(name) {
+  const normalized = String(name || 'telegram')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return normalized || 'telegram';
+}
 
-  registerApprovalDeliverer('telegram', async (card) => {
-    if (!currentBot) {
-      return { delivered: false, error: 'telegram bot not connected' };
+function envPrefixForChannel(channelName) {
+  return channelName.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+}
+
+function defaultTokenEnvKey(channelName) {
+  return channelName === 'telegram'
+    ? 'TELEGRAM_BOT_TOKEN'
+    : `${envPrefixForChannel(channelName)}_BOT_TOKEN`;
+}
+
+function defaultPoolEnvKey(channelName) {
+  return channelName === 'telegram'
+    ? 'TELEGRAM_BOT_POOL'
+    : `${envPrefixForChannel(channelName)}_BOT_POOL`;
+}
+
+function defaultJidPrefix(channelName) {
+  return channelName === 'telegram' ? 'tg:' : `${channelName}:`;
+}
+
+// Slice 7: module-level state for approval-card adapters. Each installed
+// Telegram instance registers under its own channel name so multiple bot
+// tokens can coexist without sharing approval delivery state.
+const botsByChannel = new Map();
+const loggersByChannel = new Map();
+const jidParsersByChannel = new Map();
+const approvalAdaptersRegistered = new Set();
+
+function ensureApprovalAdaptersRegistered(channelName, parseChatId) {
+  if (approvalAdaptersRegistered.has(channelName)) return;
+  approvalAdaptersRegistered.add(channelName);
+  jidParsersByChannel.set(channelName, parseChatId);
+
+  registerApprovalDeliverer(channelName, async (card) => {
+    const bot = botsByChannel.get(channelName);
+    const logger = loggersByChannel.get(channelName);
+    const parseJid = jidParsersByChannel.get(channelName);
+    if (!bot) {
+      return { delivered: false, error: `${channelName} bot not connected` };
     }
     try {
-      const chatId = parseInt(String(card.platform_id).replace(/^tg:/, ''), 10);
+      const chatId = parseJid(card.platform_id);
       if (!Number.isFinite(chatId)) {
         return { delivered: false, error: `invalid platform_id: ${card.platform_id}` };
       }
@@ -51,22 +91,25 @@ function ensureApprovalAdaptersRegistered() {
         text: opt.label,
         callback_data: `approval:${card.approval_id}:${opt.id}`,
       }));
-      const msg = await currentBot.api.sendMessage(chatId, `${card.title}\n\n${card.body}`, {
+      const msg = await bot.api.sendMessage(chatId, `${card.title}\n\n${card.body}`, {
         reply_markup: { inline_keyboard: [buttons] },
       });
       return { delivered: true, platform_message_id: String(msg.message_id) };
     } catch (err) {
-      currentLogger?.warn(`[telegram] approval deliverer threw: ${err.message}`);
+      logger?.warn(`[${channelName}] approval deliverer threw: ${err.message}`);
       return { delivered: false, error: err.message };
     }
   });
 
-  registerApprovalEditor('telegram', async (target) => {
-    if (!currentBot) {
-      return { ok: false, error: 'telegram bot not connected' };
+  registerApprovalEditor(channelName, async (target) => {
+    const bot = botsByChannel.get(channelName);
+    const logger = loggersByChannel.get(channelName);
+    const parseJid = jidParsersByChannel.get(channelName);
+    if (!bot) {
+      return { ok: false, error: `${channelName} bot not connected` };
     }
     try {
-      const chatId = parseInt(String(target.platform_id).replace(/^tg:/, ''), 10);
+      const chatId = parseJid(target.platform_id);
       const messageId = parseInt(target.platform_message_id, 10);
       if (!Number.isFinite(chatId) || !Number.isFinite(messageId)) {
         return { ok: false, error: 'invalid chat or message id' };
@@ -79,12 +122,12 @@ function ensureApprovalAdaptersRegistered() {
       const decidedBy = target.decided_by_user_id ? ` by ${target.decided_by_user_id}` : '';
       const time = new Date().toISOString().slice(11, 16);
       const newBody = `${target.original.title}\n\n${target.original.body}\n\n${verb}${decidedBy} at ${time} UTC`;
-      await currentBot.api.editMessageText(chatId, messageId, newBody, {
+      await bot.api.editMessageText(chatId, messageId, newBody, {
         reply_markup: { inline_keyboard: [] },
       });
       return { ok: true };
     } catch (err) {
-      currentLogger?.warn(`[telegram] approval editor threw: ${err.message}`);
+      logger?.warn(`[${channelName}] approval editor threw: ${err.message}`);
       return { ok: false, error: err.message };
     }
   });
@@ -211,15 +254,37 @@ class TelegramChannel {
   typingSuppressed = new Set();
 
   constructor(config, logger) {
+    const manifest = readLocalManifest();
+    this.name = normalizeChannelName(manifest.name || 'telegram');
+    this.tokenEnvKey = manifest.telegramBotTokenEnv || defaultTokenEnvKey(this.name);
+    this.poolEnvKey = manifest.telegramBotPoolEnv || defaultPoolEnvKey(this.name);
+    this.jidPrefix = manifest.telegramJidPrefix || defaultJidPrefix(this.name);
     this.config = config;
     this.logger = logger;
   }
 
+  formatChatJid(chatId) {
+    return `${this.jidPrefix}${chatId}`;
+  }
+
+  parseChatId(jid) {
+    const raw = String(jid || '');
+    if (!raw.startsWith(this.jidPrefix)) return NaN;
+    return parseInt(raw.slice(this.jidPrefix.length), 10);
+  }
+
+  chatIdForApi(jid) {
+    const raw = String(jid || '');
+    if (!raw.startsWith(this.jidPrefix)) return '';
+    return raw.slice(this.jidPrefix.length);
+  }
+
   async connect() {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const token = process.env[this.tokenEnvKey];
     if (!token) {
-      throw new Error('TELEGRAM_BOT_TOKEN not set');
+      throw new Error(`${this.tokenEnvKey} not set`);
     }
+    this.token = token;
 
     this.bot = new Bot(token);
     const triggerPattern = new RegExp(
@@ -237,7 +302,7 @@ class TelegramChannel {
           : ctx.chat.title || 'Unknown';
 
       ctx.reply(
-        `Chat ID: \`tg:${chatId}\`\nName: ${chatName}\nType: ${chatType}`,
+        `Chat ID: \`${this.formatChatJid(chatId)}\`\nName: ${chatName}\nType: ${chatType}`,
         { parse_mode: 'Markdown' },
       );
     });
@@ -247,13 +312,11 @@ class TelegramChannel {
       ctx.reply(`${this.config.assistantName} is online.`);
     });
 
-    // Slice 7: register approval-card adapters once at module level + update
-    // the live bot reference. Reconnects update currentBot but don't re-
-    // register (the deliverer + editor closures stay stable, capturing the
-    // module-level `currentBot` ref instead of `this.bot`).
-    currentBot = this.bot;
-    currentLogger = this.logger;
-    ensureApprovalAdaptersRegistered();
+    // Slice 7: register approval-card adapters once per channel instance.
+    // Reconnects update the bot map without re-registering handlers.
+    botsByChannel.set(this.name, this.bot);
+    loggersByChannel.set(this.name, this.logger);
+    ensureApprovalAdaptersRegistered(this.name, this.parseChatId.bind(this));
 
     // Slice 7: route inline-button taps through approval-click-router.
     // Stays bound to this bot instance — grammy event handlers are per-bot.
@@ -273,7 +336,7 @@ class TelegramChannel {
       if (chatId == null) {
         this.logger.warn(
           { approval_id, fromId: ctx.from?.id },
-          '[telegram] callback_query had no chat (message unavailable); dropping click',
+          `[${this.name}] callback_query had no chat (message unavailable); dropping click`,
         );
         await ctx.answerCallbackQuery({ text: 'Cannot process — message unavailable' });
         return;
@@ -282,14 +345,14 @@ class TelegramChannel {
       try {
         result = await routeApprovalClick({
           approval_id,
-          clicker_channel: 'telegram',
-          clicker_platform_id: `tg:${chatId}`,
+          clicker_channel: this.name,
+          clicker_platform_id: this.formatChatJid(chatId),
           clicker_handle: String(ctx.from.id),
           clicker_name: ctx.from.username || ctx.from.first_name || '',
           selected_option,
         });
       } catch (err) {
-        this.logger.warn(`[telegram] approval click route threw: ${err.message}`);
+        this.logger.warn(`[${this.name}] approval click route threw: ${err.message}`);
         await ctx.answerCallbackQuery({ text: 'Error processing approval' });
         return;
       }
@@ -304,7 +367,7 @@ class TelegramChannel {
       // post-reply typing-suppression so the next setTyping poll can
       // legitimately show the bot composing again. See typingSuppressed
       // field comment for the full picture.
-      this.typingSuppressed.delete(`tg:${ctx.chat.id}`);
+      this.typingSuppressed.delete(this.formatChatJid(ctx.chat.id));
 
       // Skip locally-handled bot.command() handlers (chatid, ping) — they
       // run separately and we'd double-process them via this generic
@@ -336,7 +399,7 @@ class TelegramChannel {
           candidate = candidate.replace(mentionRe, '').trim();
         }
         if (/^\d{4}$/.test(candidate)) {
-          const platformId = `tg:${ctx.chat.id}`;
+          const platformId = this.formatChatJid(ctx.chat.id);
           const isGroup = ctx.chat.type !== 'private';
           const chatNameForPair =
             isGroup
@@ -344,11 +407,11 @@ class TelegramChannel {
               : ctx.from?.first_name || ctx.from?.username || platformId;
           const senderForPair =
             ctx.from?.username || ctx.from?.first_name || ctx.from?.id?.toString() || null;
-          const senderUserId = ctx.from?.id != null ? `telegram:${ctx.from.id}` : null;
+          const senderUserId = ctx.from?.id != null ? `${this.name}:${ctx.from.id}` : null;
           try {
             const result = await this.config.consumePendingCode({
               code: candidate,
-              channel: 'telegram',
+              channel: this.name,
               sender: senderForPair,
               senderUserId,
               platformId,
@@ -374,6 +437,14 @@ class TelegramChannel {
                     ? result.intent
                     : JSON.stringify(result.intent);
                 confirmationText = `✓ Pairing success — this chat is now registered (intent: ${intentLabel}).`;
+                if (
+                  result.intent &&
+                  typeof result.intent === 'object' &&
+                  result.intent.kind === 'migrate_channel'
+                ) {
+                  confirmationText +=
+                    '\n\nMigration applied. Run `nanotars restart` on the host so updated plugin channel scopes are loaded into future containers.';
+                }
               } else {
                 const reason = registrationError || 'unknown registration error';
                 confirmationText =
@@ -416,7 +487,7 @@ class TelegramChannel {
         }
       }
 
-      const chatJid = `tg:${ctx.chat.id}`;
+      const chatJid = this.formatChatJid(ctx.chat.id);
       let content = ctx.message.text;
       const timestamp = new Date(ctx.message.date * 1000).toISOString();
       const senderName =
@@ -461,7 +532,7 @@ class TelegramChannel {
       // registeredGroups() Record<jid> was replaced by the entity-model
       // resolveAgentsForInbound(channel, platformId) accessor — empty
       // array means the chat has no agent_group wiring.
-      if (this.config.resolveAgentsForInbound('telegram', chatJid).length === 0) {
+      if (this.config.resolveAgentsForInbound(this.name, chatJid).length === 0) {
         this.logger.debug(
           { chatJid, chatName },
           'Message from unregistered Telegram chat',
@@ -510,8 +581,8 @@ class TelegramChannel {
 
     // Handle non-text messages with placeholders so the agent knows something was sent
     const storeNonText = (ctx, placeholder) => {
-      const chatJid = `tg:${ctx.chat.id}`;
-      if (this.config.resolveAgentsForInbound('telegram', chatJid).length === 0) return;
+      const chatJid = this.formatChatJid(ctx.chat.id);
+      if (this.config.resolveAgentsForInbound(this.name, chatJid).length === 0) return;
 
       const timestamp = new Date(ctx.message.date * 1000).toISOString();
       const senderName =
@@ -548,7 +619,7 @@ class TelegramChannel {
         fs.mkdirSync(mediaDir, { recursive: true });
 
         const hostPath = path.join(mediaDir, finalName);
-        const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+        const fileUrl = `https://api.telegram.org/file/bot${this.token}/${file.file_path}`;
         const resp = await fetch(fileUrl);
         if (!resp.ok) {
           this.logger.warn(
@@ -575,8 +646,8 @@ class TelegramChannel {
     };
 
     const storeMedia = async (ctx, placeholder, opts) => {
-      const chatJid = `tg:${ctx.chat.id}`;
-      const resolved = this.config.resolveAgentsForInbound('telegram', chatJid);
+      const chatJid = this.formatChatJid(ctx.chat.id);
+      const resolved = this.config.resolveAgentsForInbound(this.name, chatJid);
       if (resolved.length === 0) return;
 
       const timestamp = new Date(ctx.message.date * 1000).toISOString();
@@ -654,14 +725,14 @@ class TelegramChannel {
       this.logger.error({ err: err.message }, 'Telegram bot error');
     });
 
-    // Load swarm bot pool if pool.js is present and TELEGRAM_BOT_POOL is set
-    if (process.env.TELEGRAM_BOT_POOL) {
+    // Load swarm bot pool if pool.js is present and the instance pool env is set.
+    if (process.env[this.poolEnvKey]) {
       try {
         const { createPool } = await import('./pool.js');
-        this.pool = await createPool(process.env.TELEGRAM_BOT_POOL, this.logger);
+        this.pool = await createPool(process.env[this.poolEnvKey], this.logger);
       } catch (err) {
         if (err.code === 'ERR_MODULE_NOT_FOUND') {
-          this.logger.warn('TELEGRAM_BOT_POOL is set but pool.js not found — run /add-telegram-swarm to install');
+          this.logger.warn(`${this.poolEnvKey} is set but pool.js not found — run /add-telegram-swarm to install`);
         } else {
           this.logger.error({ err: err.message }, 'Failed to initialize bot pool');
         }
@@ -719,12 +790,12 @@ class TelegramChannel {
         try {
           await this.bot.api.setMyCommands(tgCmds, { scope: { type: scopeType } });
         } catch (err) {
-          this.logger.warn(`[telegram] setMyCommands(${scopeType}) failed: ${err.message}`);
+          this.logger.warn(`[${this.name}] setMyCommands(${scopeType}) failed: ${err.message}`);
         }
       }
-      this.logger.info(`[telegram] setMyCommands registered ${tgCmds.length} admin commands (DMs + group admins)`);
+      this.logger.info(`[${this.name}] setMyCommands registered ${tgCmds.length} admin commands (DMs + group admins)`);
     } catch (err) {
-      this.logger.warn(`[telegram] setMyCommands setup skipped: ${err.message}`);
+      this.logger.warn(`[${this.name}] setMyCommands setup skipped: ${err.message}`);
     }
   }
 
@@ -741,7 +812,7 @@ class TelegramChannel {
     }
 
     try {
-      const numericId = jid.replace(/^tg:/, '');
+      const numericId = this.chatIdForApi(jid);
 
       // Sanitise + send with parse_mode=Markdown so `**bold**` from the
       // assistant renders cleanly instead of literally. The sanitiser is
@@ -789,7 +860,7 @@ class TelegramChannel {
       return;
     }
 
-    const numericId = jid.replace(/^tg:/, '');
+    const numericId = this.chatIdForApi(jid);
     const clippedCaption = clipCaption(caption);
     const kind = detectMediaKind(fileName, mime);
     const file = new InputFile(buffer, fileName);
@@ -841,7 +912,7 @@ class TelegramChannel {
     // typingSuppressed comment on the field for why.
     if (this.typingSuppressed.has(jid)) return;
     try {
-      const numericId = jid.replace(/^tg:/, '');
+      const numericId = this.chatIdForApi(jid);
       await this.bot.api.sendChatAction(numericId, 'typing');
     } catch (err) {
       this.logger.error({ jid, err }, 'Failed to send Telegram typing indicator');
@@ -854,7 +925,7 @@ class TelegramChannel {
       return;
     }
     try {
-      const numericId = jid.replace(/^tg:/, '');
+      const numericId = this.chatIdForApi(jid);
       // Empty emoji is the orchestrator's "clear prior reaction" signal —
       // Telegram represents that as an empty reaction array, not an empty
       // emoji string (which the API rejects with REACTION_INVALID).
@@ -871,13 +942,15 @@ class TelegramChannel {
   }
 
   ownsJid(jid) {
-    return jid.startsWith('tg:');
+    return String(jid || '').startsWith(this.jidPrefix);
   }
 
   async disconnect() {
     if (this.bot) {
       this.bot.stop();
       this.bot = null;
+      botsByChannel.delete(this.name);
+      loggersByChannel.delete(this.name);
       this.logger.info('Telegram bot stopped');
     }
   }
