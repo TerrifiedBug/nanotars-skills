@@ -52,8 +52,26 @@ function defaultTokenEnvKey(channelName) {
 function readEnvVar(key) {
   if (!fs.existsSync(ENV_PATH)) return null;
   const m = fs.readFileSync(ENV_PATH, 'utf-8').match(new RegExp(`^${key}=(.*)$`, 'm'));
-  if (!m) return null;
-  return m[1].trim().replace(/^['"]|['"]$/g, '');
+  return m ? parseEnvValue(m[1]) : null;
+}
+
+function parseEnvValue(raw) {
+  let value = raw.trim();
+  const quote = value[0];
+  if (quote === '"' || quote === "'") {
+    let out = '';
+    for (let i = 1; i < value.length; i++) {
+      const ch = value[i];
+      if (ch === quote) return out;
+      if (quote === '"' && ch === '\\' && i + 1 < value.length) {
+        out += value[++i];
+      } else {
+        out += ch;
+      }
+    }
+    return out;
+  }
+  return value.replace(/\s+#.*$/, '').trim();
 }
 
 function upsertEnvVar(key, value) {
