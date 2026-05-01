@@ -1,35 +1,59 @@
 /**
  * Telegram Authentication Script
  *
- * Validates TELEGRAM_BOT_TOKEN against Telegram's getMe endpoint and writes
- * the validated token to .env. Re-runs short-circuit if the token is already
- * valid. Falls through to an interactive prompt if missing or invalid.
+ * Validates the instance bot token against Telegram's getMe endpoint and
+ * writes the validated token to .env. Re-runs short-circuit if the token is
+ * already valid. Falls through to an interactive prompt if missing or invalid.
  *
  * Usage:
- *   node plugins/channels/telegram/auth.js                  # interactive
- *   node plugins/channels/telegram/auth.js --token <value>  # non-interactive
+ *   node plugins/channels/telegram/auth.js                         # interactive
+ *   node plugins/channels/telegram/auth.js --token <value>         # non-interactive
+ *   node plugins/channels/telegram-personal/auth.js --token <value>
  */
 import fs from 'fs';
 import readline from 'readline';
 import path from 'path';
 
 const ENV_PATH = path.resolve('.env');
-const STATUS_DIR = './data/channels/telegram';
-const STATUS_FILE = `${STATUS_DIR}/auth-status.txt`;
-const ENV_KEY = 'TELEGRAM_BOT_TOKEN';
+const PLUGIN_DIR = path.dirname(new URL(import.meta.url).pathname);
 
 function parseArgs(argv) {
   const out = {};
   for (let i = 2; i < argv.length; i++) {
     if (argv[i] === '--token') out.token = argv[++i];
+    else if (argv[i] === '--channel') out.channel = argv[++i];
+    else if (argv[i] === '--env-key') out.envKey = argv[++i];
   }
   return out;
+}
+
+function readLocalManifest() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf-8'));
+  } catch {
+    return {};
+  }
+}
+
+function normalizeChannelName(name) {
+  const normalized = String(name || path.basename(PLUGIN_DIR))
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return normalized || 'telegram';
+}
+
+function defaultTokenEnvKey(channelName) {
+  if (channelName === 'telegram') return 'TELEGRAM_BOT_TOKEN';
+  return `${channelName.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_BOT_TOKEN`;
 }
 
 function readEnvVar(key) {
   if (!fs.existsSync(ENV_PATH)) return null;
   const m = fs.readFileSync(ENV_PATH, 'utf-8').match(new RegExp(`^${key}=(.*)$`, 'm'));
-  return m ? m[1] : null;
+  if (!m) return null;
+  return m[1].trim().replace(/^['"]|['"]$/g, '');
 }
 
 function upsertEnvVar(key, value) {
@@ -46,9 +70,9 @@ function upsertEnvVar(key, value) {
   fs.renameSync(tmp, ENV_PATH);
 }
 
-function writeStatus(status) {
-  fs.mkdirSync(STATUS_DIR, { recursive: true });
-  fs.writeFileSync(STATUS_FILE, status + '\n');
+function writeStatus(statusDir, status) {
+  fs.mkdirSync(statusDir, { recursive: true });
+  fs.writeFileSync(path.join(statusDir, 'auth-status.txt'), status + '\n');
 }
 
 function prompt(question) {
@@ -78,17 +102,21 @@ async function validate(token) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const envToken = readEnvVar(ENV_KEY);
+  const manifest = readLocalManifest();
+  const channelName = normalizeChannelName(args.channel || manifest.name || path.basename(PLUGIN_DIR));
+  const envKey = args.envKey || manifest.telegramBotTokenEnv || defaultTokenEnvKey(channelName);
+  const statusDir = path.join('data', 'channels', channelName);
+  const envToken = readEnvVar(envKey);
 
   // Short-circuit: existing valid env token AND no flag override → already authenticated.
   if (!args.token && envToken) {
     const result = await validate(envToken);
     if (result.ok) {
-      writeStatus('already_authenticated');
+      writeStatus(statusDir, 'already_authenticated');
       console.log(`✓ Already authenticated as @${result.username}`);
       return 0;
     }
-    console.log(`Existing TELEGRAM_BOT_TOKEN failed validation: ${result.error}`);
+    console.log(`Existing ${envKey} failed validation: ${result.error}`);
     console.log('Falling through to prompt for a new token.\n');
   }
 
@@ -101,7 +129,7 @@ async function main() {
     console.log('');
     token = await prompt('Telegram bot token: ');
     if (!token) {
-      writeStatus('failed');
+      writeStatus(statusDir, 'failed');
       console.error('No token provided. Aborting.');
       return 1;
     }
@@ -109,22 +137,22 @@ async function main() {
 
   const result = await validate(token);
   if (!result.ok) {
-    writeStatus('failed');
+    writeStatus(statusDir, 'failed');
     console.error(`✗ Validation failed: ${result.error}`);
     console.error('Hint: tokens look like `1234567890:ABC...` — double-check you copied the whole line from BotFather.');
     return 1;
   }
 
   try {
-    upsertEnvVar(ENV_KEY, token);
+    upsertEnvVar(envKey, token);
   } catch (err) {
-    writeStatus('failed');
+    writeStatus(statusDir, 'failed');
     console.error(`✗ Could not write to .env: ${err.message}`);
     return 1;
   }
-  writeStatus('ok');
+  writeStatus(statusDir, 'ok');
   console.log(`✓ Validated as @${result.username}`);
-  console.log(`✓ TELEGRAM_BOT_TOKEN written to .env`);
+  console.log(`✓ ${envKey} written to .env`);
   return 0;
 }
 
