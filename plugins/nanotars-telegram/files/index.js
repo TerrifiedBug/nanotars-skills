@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { Bot, InputFile } from 'grammy';
 import {
   registerApprovalDeliverer,
@@ -135,6 +137,11 @@ function clipCaption(caption) {
   return caption.length > TELEGRAM_CAPTION_MAX
     ? caption.slice(0, TELEGRAM_CAPTION_MAX)
     : caption;
+}
+
+function safeFilename(filename) {
+  const sanitized = String(filename || 'telegram-file').replace(/[^a-zA-Z0-9._-]/g, '_');
+  return sanitized || 'telegram-file';
 }
 
 // Retry a one-shot operation that can fail on transient network errors at
@@ -489,6 +496,18 @@ class TelegramChannel {
       );
     });
 
+    const buildReplyContext = (ctx) => {
+      const replyMsg = ctx.message.reply_to_message;
+      if (!replyMsg) return undefined;
+      const replySender =
+        replyMsg.from?.first_name ||
+        replyMsg.from?.username ||
+        replyMsg.from?.id?.toString() ||
+        'unknown';
+      const replyText = replyMsg.text || replyMsg.caption || null;
+      return { sender_name: replySender, text: replyText };
+    };
+
     // Handle non-text messages with placeholders so the agent knows something was sent
     const storeNonText = (ctx, placeholder) => {
       const chatJid = `tg:${ctx.chat.id}`;
@@ -499,15 +518,6 @@ class TelegramChannel {
         ctx.from?.first_name || ctx.from?.username || ctx.from?.id?.toString() || 'Unknown';
       const caption = ctx.message.caption ? ` ${ctx.message.caption}` : '';
 
-      // Extract reply context if this is a reply
-      let replyContext;
-      const replyMsg = ctx.message.reply_to_message;
-      if (replyMsg) {
-        const replySender = replyMsg.from?.first_name || replyMsg.from?.username || replyMsg.from?.id?.toString() || 'unknown';
-        const replyText = replyMsg.text || replyMsg.caption || null;
-        replyContext = { sender_name: replySender, text: replyText };
-      }
-
       this.config.onChatMetadata(chatJid, timestamp);
       this.config.onMessage(chatJid, {
         id: ctx.message.message_id.toString(),
@@ -517,14 +527,117 @@ class TelegramChannel {
         content: `${placeholder}${caption}`,
         timestamp,
         is_from_me: false,
-        reply_context: replyContext,
+        reply_context: buildReplyContext(ctx),
+      });
+    };
+
+    const downloadTelegramFile = async (fileId, groupFolder, filename) => {
+      if (!this.bot || !fileId) return null;
+
+      try {
+        const file = await this.bot.api.getFile(fileId);
+        if (!file.file_path) {
+          this.logger.warn({ fileId }, 'Telegram getFile returned no file_path');
+          return null;
+        }
+
+        const fileExt = path.extname(file.file_path);
+        const safeName = safeFilename(filename);
+        const finalName = path.extname(safeName) ? safeName : `${safeName}${fileExt || '.bin'}`;
+        const mediaDir = path.join(this.config.paths.groupsDir, groupFolder, 'media');
+        fs.mkdirSync(mediaDir, { recursive: true });
+
+        const hostPath = path.join(mediaDir, finalName);
+        const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+        const resp = await fetch(fileUrl);
+        if (!resp.ok) {
+          this.logger.warn(
+            { fileId, status: resp.status },
+            'Telegram file download failed',
+          );
+          return null;
+        }
+
+        const buffer = Buffer.from(await resp.arrayBuffer());
+        fs.writeFileSync(hostPath, buffer);
+        this.logger.info({ fileId, groupFolder, filename: finalName }, 'Telegram media downloaded');
+        return {
+          path: `/workspace/group/media/${finalName}`,
+          hostPath,
+        };
+      } catch (err) {
+        this.logger.warn(
+          { fileId, err: err.message || err },
+          'Failed to download Telegram file',
+        );
+        return null;
+      }
+    };
+
+    const storeMedia = async (ctx, placeholder, opts) => {
+      const chatJid = `tg:${ctx.chat.id}`;
+      const resolved = this.config.resolveAgentsForInbound('telegram', chatJid);
+      if (resolved.length === 0) return;
+
+      const timestamp = new Date(ctx.message.date * 1000).toISOString();
+      const senderName =
+        ctx.from?.first_name || ctx.from?.username || ctx.from?.id?.toString() || 'Unknown';
+      const caption = ctx.message.caption ? ` ${ctx.message.caption}` : '';
+      const msgId = ctx.message.message_id.toString();
+
+      let content = `${placeholder}${caption}`;
+      let mediaPath;
+      let mediaHostPath;
+      if (opts?.fileId) {
+        const downloaded = await downloadTelegramFile(
+          opts.fileId,
+          resolved[0].agentGroup.folder,
+          opts.filename || `${opts.mediaType || 'media'}_${msgId}`,
+        );
+        if (downloaded) {
+          mediaPath = downloaded.path;
+          mediaHostPath = downloaded.hostPath;
+          content = `[${opts.mediaType}: ${downloaded.path}]${caption}`;
+        }
+      }
+
+      this.config.onChatMetadata(chatJid, timestamp);
+      this.config.onMessage(chatJid, {
+        id: msgId,
+        chat_jid: chatJid,
+        sender: ctx.from?.id?.toString() || '',
+        sender_name: senderName,
+        content,
+        timestamp,
+        is_from_me: false,
+        mediaType: mediaPath ? opts.mediaType : undefined,
+        mediaPath,
+        mediaHostPath,
+        reply_context: buildReplyContext(ctx),
       });
     };
 
     this.bot.on('message:photo', (ctx) => storeNonText(ctx, '[Photo]'));
     this.bot.on('message:video', (ctx) => storeNonText(ctx, '[Video]'));
-    this.bot.on('message:voice', (ctx) => storeNonText(ctx, '[Voice message]'));
-    this.bot.on('message:audio', (ctx) => storeNonText(ctx, '[Audio]'));
+    this.bot.on('message:voice', (ctx) => {
+      storeMedia(ctx, '[Voice message]', {
+        fileId: ctx.message.voice?.file_id,
+        filename: `telegram-voice-${ctx.message.message_id}`,
+        mediaType: 'audio',
+      }).catch((err) => {
+        this.logger.warn({ err: err.message || err }, 'Telegram voice handler failed');
+      });
+    });
+    this.bot.on('message:audio', (ctx) => {
+      const name = ctx.message.audio?.file_name || `telegram-audio-${ctx.message.message_id}`;
+      storeMedia(ctx, '[Audio]', {
+        fileId: ctx.message.audio?.file_id,
+        filename: name,
+        mediaType: 'audio',
+      }).catch((err) => {
+        this.logger.warn({ err: err.message || err }, 'Telegram audio handler failed');
+      });
+    });
     this.bot.on('message:document', (ctx) => {
       const name = ctx.message.document?.file_name || 'file';
       storeNonText(ctx, `[Document: ${name}]`);
