@@ -44,9 +44,9 @@ jobs:
           else
             # Use diff-tree which correctly handles merge commits
             # (git diff HEAD~1 HEAD misses files in merge commits)
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD -- 'plugins/*/files/' 'plugins/*/skills/' | sed 's|plugins/\([^/]*\)/.*|\1|' | sort -u | tr '\n' ' ')
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r -m HEAD -- 'plugins/*/files/**' 'plugins/*/skills/**' 'plugins/*/.claude-plugin/**' | sed -n 's|^plugins/\([^/]*\)/.*|\1|p' | sort -u | tr '\n' ' ')
           fi
-          echo "plugins=${CHANGED}" >> $GITHUB_OUTPUT
+          printf 'plugins=%s\n' "$CHANGED" >> "$GITHUB_OUTPUT"
           echo "Changed plugins: ${CHANGED:-none}"
 
       - name: Determine bump level from PR labels
@@ -76,9 +76,11 @@ jobs:
             [ -z "$PLUGIN" ] && continue
             FILES_JSON="plugins/${PLUGIN}/files/plugin.json"
             META_JSON="plugins/${PLUGIN}/.claude-plugin/plugin.json"
-            [ ! -f "$FILES_JSON" ] && continue
+            [ ! -f "$FILES_JSON" ] && [ ! -f "$META_JSON" ] && continue
 
-            CURRENT=$(jq -r '.version // "1.0.0"' "$FILES_JSON")
+            SOURCE_JSON="$FILES_JSON"
+            [ -f "$SOURCE_JSON" ] || SOURCE_JSON="$META_JSON"
+            CURRENT=$(jq -r '.version // "1.0.0"' "$SOURCE_JSON")
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
 
             case "${{ steps.level.outputs.level }}" in
@@ -88,7 +90,9 @@ jobs:
             esac
 
             NEW="${MAJOR}.${MINOR}.${PATCH}"
-            jq --arg v "$NEW" '.version = $v' "$FILES_JSON" > tmp.json && mv tmp.json "$FILES_JSON"
+            if [ -f "$FILES_JSON" ]; then
+              jq --arg v "$NEW" '.version = $v' "$FILES_JSON" > tmp.json && mv tmp.json "$FILES_JSON"
+            fi
 
             if [ -f "$META_JSON" ]; then
               jq --arg v "$NEW" '.version = $v' "$META_JSON" > tmp.json && mv tmp.json "$META_JSON"
