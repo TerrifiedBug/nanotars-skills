@@ -2,6 +2,7 @@
   "name": "transcription",
   "description": "Voice message transcription via OpenAI Whisper",
   "containerEnvVars": [],
+  "hostEnvVars": ["OPENAI_API_KEY"],
   "hooks": ["onInboundMessage"],
   "dependencies": true,
   "channels": ["*"],
