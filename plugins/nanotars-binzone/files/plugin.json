@@ -1,0 +1,9 @@
+{
+  "name": "binzone",
+  "description": "Vale of White Horse bin collection lookup by UPRN",
+  "containerEnvVars": ["BINZONE_UPRN"],
+  "hooks": [],
+  "channels": ["*"],
+  "groups": ["*"],
+  "version": "1.0.0"
+}

@@ -1,0 +1,5 @@
+{
+  "name": "nanotars-binzone",
+  "version": "1.0.0",
+  "description": "Add Vale of White Horse bin collection lookup to NanoTars agents. Uses a UPRN to fetch the next collection from the council Binzone service. Triggers on \"add binzone\", \"bin collection\", \"bins skill\"."
+}
