@@ -84,6 +84,9 @@ function upsertEnvVar(key, value) {
     content += `${key}=${value}\n`;
   }
   const tmp = `${ENV_PATH}.tmp`;
+  try {
+    fs.unlinkSync(tmp);
+  } catch {}
   fs.writeFileSync(tmp, content, { mode: 0o600 });
   fs.renameSync(tmp, ENV_PATH);
 }
