@@ -1,0 +1,27 @@
+name: Skill Audit
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/**/skills/**'
+      - 'plugins/**/files/container-skills/**'
+      - 'plugins/**/*.md'
+      - 'scripts/skill-audit-check.mjs'
+      - '.github/workflows/skill-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  skill-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run skill audit on changed files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            node scripts/skill-audit-check.mjs --changed "origin/${{ github.base_ref }}...HEAD"
+          else
+            node scripts/skill-audit-check.mjs --changed "origin/main...HEAD"
+          fi
