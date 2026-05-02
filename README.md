@@ -95,4 +95,6 @@ Each skill creates a plugin in your `plugins/` directory with a `plugin.json` ma
 
 Create a skill with `/create-skill-plugin` in your Nanotars repo, test it locally, then publish with `/nanotars-publish-skill`.
 
+For install-skill authoring, keep plugin-specific instructions small and reuse the shared contract in [`docs/add-skill-authoring.md`](docs/add-skill-authoring.md). New add-skill skills can start from [`templates/add-skill/SKILL.md`](templates/add-skill/SKILL.md).
+
 See [CONTRIBUTING.md](https://github.com/TerrifiedBug/nanotars/blob/main/CONTRIBUTING.md) for details.
